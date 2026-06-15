@@ -101,3 +101,51 @@ export enum ShipmentItemStatus {
     STORED = 'stored',
     FAILED = 'failed',
 }
+
+export enum IncidentType {
+    TEMPERATURE_FAILURE = 'temperature_failure',
+    POWER_OUTAGE = 'power_outage',
+    STRUCTURAL_DAMAGE = 'structural_damage',
+    FIRE_HAZARD = 'fire_hazard',
+    FLOOD = 'flood',
+    EQUIPMENT_FAILURE = 'equipment_failure',
+    PEST_INFESTATION = 'pest_infestation',
+    OTHER = 'other',
+}
+
+export enum IncidentSeverity {
+    LOW = 'low',
+    MEDIUM = 'medium',
+    HIGH = 'high',
+    CRITICAL = 'critical',
+}
+
+export enum IncidentStatus {
+    OPEN = 'open',
+    RESOLVING = 'resolving',
+    RESOLVED = 'resolved',
+    CLOSED = 'closed',
+}
+
+export enum TransferOrderStatus {
+    DRAFT = 'draft',
+    PROPOSED = 'proposed',
+    CONFIRMED = 'confirmed',
+    IN_PROGRESS = 'in_progress',
+    COMPLETED = 'completed',
+    CANCELLED = 'cancelled',
+}
+
+export enum OutboundOrderStatus {
+    DRAFT = 'draft',
+    CONFIRMED = 'confirmed',
+    PICKING = 'picking',
+    IN_TRANSIT = 'in_transit',
+    COMPLETED = 'completed',
+    CANCELLED = 'cancelled',
+}
+
+export enum OutboundDestinationType {
+    GATE = 'gate',
+    PORT = 'port',
+}
