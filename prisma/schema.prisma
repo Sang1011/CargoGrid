@@ -1,0 +1,851 @@
+// ─── Generator & Datasource ────────────────────────────────────────────────
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ─────────────────────────────────────────────────────────────────
+
+enum WarehouseType {
+  normal
+  cold
+  heavy
+  fragile
+  hazardous
+  mixed
+}
+
+enum ZoneType {
+  normal
+  cold
+  heavy
+  fragile
+  hazardous
+}
+
+enum ProductCategory {
+  normal
+  cold
+  fragile
+  hazardous
+  bulky
+  heavy
+}
+
+enum VehicleType {
+  forklift
+  pallet_jack
+  reach_truck
+  container_truck
+  electric_cart
+  manual
+}
+
+enum LocationNodeType {
+  PORT
+  GATE
+  WAREHOUSE
+  DOCK
+  INTERSECTION
+  SLOT
+  PARKING
+  CHECKPOINT
+}
+
+enum RoadDirection {
+  one_way
+  two_way
+}
+
+enum PriorityLevel {
+  low
+  medium
+  high
+  urgent
+}
+
+enum AssignmentStatus {
+  pending
+  assigned
+  in_transit
+  stored
+  retrieved
+  cancelled
+}
+
+enum AlgorithmType {
+  random
+  greedy
+  greedy_local_search
+  simulated_annealing
+}
+
+enum ScenarioStatus {
+  draft
+  active
+  archived
+}
+
+enum ShipmentStatus {
+  pending
+  arrived
+  dispatching
+  in_progress
+  completed
+  partial
+  cancelled
+}
+
+enum ShipmentItemStatus {
+  waiting
+  assigned
+  in_transit
+  stored
+  failed
+}
+
+enum CargoItemStatus {
+  in_transit_inbound
+  stored
+  in_transit_transfer
+  in_transit_outbound
+  delivered
+  lost
+  damaged
+}
+
+enum IncidentType {
+  temperature_failure
+  power_outage
+  structural_damage
+  fire_hazard
+  flood
+  equipment_failure
+  pest_infestation
+  other
+}
+
+enum IncidentSeverity {
+  low
+  medium
+  high
+  critical
+}
+
+enum IncidentStatus {
+  open
+  resolving
+  resolved
+  closed
+}
+
+enum TransferOrderStatus {
+  draft
+  proposed
+  confirmed
+  in_progress
+  completed
+  cancelled
+}
+
+enum OutboundOrderStatus {
+  draft
+  confirmed
+  picking
+  in_transit
+  completed
+  cancelled
+}
+
+enum OutboundDestinationType {
+  gate
+  port
+}
+
+enum VehicleStatus {
+  available
+  busy
+  maintenance
+  inactive
+}
+
+enum VehicleScope {
+  intra_warehouse
+  inter_warehouse
+}
+
+enum OptimizationContextType {
+  inbound
+  transfer
+  outbound
+  benchmark
+}
+
+// ─── Models ────────────────────────────────────────────────────────────────
+
+model Scenario {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String         @db.VarChar(100)
+  description String?
+  status      ScenarioStatus @default(active)
+  tags        String[]
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  warehouses       Warehouse[]
+  products         Product[]
+  locationNodes    LocationNode[]
+  roadEdges        RoadEdge[]
+  optimizationRuns OptimizationRun[]
+  inboundShipments InboundShipment[]
+  transferOrders   TransferOrder[]
+  outboundOrders   OutboundOrder[]
+  cargoItems       CargoItem[]
+  vehicles         Vehicle[]
+
+  @@map("scenarios")
+}
+
+model Warehouse {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scenarioId      String        @map("scenario_id") @db.Uuid
+  name            String        @db.VarChar(100)
+  code            String        @db.VarChar(20)
+  type            WarehouseType
+  geoLat          Decimal?      @map("geo_lat") @db.Decimal(10, 7)
+  geoLng          Decimal?      @map("geo_lng") @db.Decimal(10, 7)
+  localX          Decimal?      @map("local_x") @db.Decimal(10, 2)
+  localY          Decimal?      @map("local_y") @db.Decimal(10, 2)
+  totalAreaSqm    Decimal?      @map("total_area_sqm") @db.Decimal(10, 2)
+  tempMin         Decimal?      @map("temp_min") @db.Decimal(5, 2)
+  tempMax         Decimal?      @map("temp_max") @db.Decimal(5, 2)
+  doorCount       Int           @default(1) @map("door_count") @db.SmallInt
+  doorWidthM      Decimal?      @map("door_width_m") @db.Decimal(6, 3)
+  doorHeightM     Decimal?      @map("door_height_m") @db.Decimal(6, 3)
+  maxWeightKg     Decimal?      @map("max_weight_kg") @db.Decimal(12, 2)
+  currentWeightKg Decimal       @default(0) @map("current_weight_kg") @db.Decimal(12, 2)
+  maxVolumeM3     Decimal?      @map("max_volume_m3") @db.Decimal(12, 4)
+  currentVolumeM3 Decimal       @default(0) @map("current_volume_m3") @db.Decimal(12, 4)
+  gridCols        Int?          @map("grid_cols") @db.SmallInt
+  gridRows        Int?          @map("grid_rows") @db.SmallInt
+  gridCellWidthM  Decimal?      @map("grid_cell_width_m") @db.Decimal(6, 3)
+  gridCellDepthM  Decimal?      @map("grid_cell_depth_m") @db.Decimal(6, 3)
+  isActive        Boolean       @default(true) @map("is_active")
+  notes           String?
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  scenario              Scenario                  @relation(fields: [scenarioId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  zones                 Zone[]
+  storageSlots          StorageSlot[]
+  allowedVehicles       WarehouseAllowedVehicle[]
+  sensorReadings        WarehouseSensorReading[]
+  locationNodes         LocationNode[]
+  incidents             WarehouseIncident[]
+  vehicles              Vehicle[]
+  assignments           Assignment[]
+  cargoItemsCurrent     CargoItem[]               @relation("currentWarehouse")
+  shipmentItemsAssigned ShipmentItem[]            @relation("assignedWarehouse")
+  transferOrdersFrom    TransferOrder[]           @relation("fromWarehouse")
+  transferItemsProposed TransferOrderItem[]       @relation("proposedWarehouse")
+  transferItemsActual   TransferOrderItem[]       @relation("actualWarehouse")
+  outboundItemsFrom     OutboundOrderItem[]       @relation("fromWarehouse")
+  cargoEventsFrom       CargoItemEvent[]          @relation("fromWarehouse")
+  cargoEventsTo         CargoItemEvent[]          @relation("toWarehouse")
+
+  @@unique([scenarioId, code])
+  @@map("warehouses")
+}
+
+model WarehouseAllowedVehicle {
+  warehouseId String      @map("warehouse_id") @db.Uuid
+  vehicleType VehicleType @map("vehicle_type")
+  maxLoadKg   Decimal?    @map("max_load_kg") @db.Decimal(10, 2)
+  speedRating Int?        @map("speed_rating") @db.SmallInt
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+
+  @@id([warehouseId, vehicleType])
+  @@map("warehouse_allowed_vehicles")
+}
+
+model Zone {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  warehouseId     String   @map("warehouse_id") @db.Uuid
+  name            String   @db.VarChar(100)
+  code            String   @db.VarChar(20)
+  zoneType        ZoneType @map("zone_type")
+  localX          Decimal  @map("local_x") @db.Decimal(10, 2)
+  localY          Decimal  @map("local_y") @db.Decimal(10, 2)
+  width           Decimal  @db.Decimal(10, 2)
+  depth           Decimal  @db.Decimal(10, 2)
+  tempMin         Decimal? @map("temp_min") @db.Decimal(5, 2)
+  tempMax         Decimal? @map("temp_max") @db.Decimal(5, 2)
+  maxWeightKg     Decimal? @map("max_weight_kg") @db.Decimal(12, 2)
+  currentWeightKg Decimal  @default(0) @map("current_weight_kg") @db.Decimal(12, 2)
+  maxVolumeM3     Decimal? @map("max_volume_m3") @db.Decimal(12, 4)
+  currentVolumeM3 Decimal  @default(0) @map("current_volume_m3") @db.Decimal(12, 4)
+  gridColStart    Int      @default(0) @map("grid_col_start") @db.SmallInt
+  gridRowStart    Int      @default(0) @map("grid_row_start") @db.SmallInt
+  gridCols        Int      @default(1) @map("grid_cols") @db.SmallInt
+  gridRows        Int      @default(1) @map("grid_rows") @db.SmallInt
+  isActive        Boolean  @default(true) @map("is_active")
+
+  warehouse      Warehouse                @relation(fields: [warehouseId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  storageSlots   StorageSlot[]
+  sensorReadings WarehouseSensorReading[]
+
+  @@unique([warehouseId, code])
+  @@map("zones")
+}
+
+model WarehouseSensorReading {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  warehouseId  String   @map("warehouse_id") @db.Uuid
+  zoneId       String?  @map("zone_id") @db.Uuid
+  temperatureC Decimal? @map("temperature_c") @db.Decimal(5, 2)
+  humidityPct  Decimal? @map("humidity_pct") @db.Decimal(5, 2)
+  recordedAt   DateTime @default(now()) @map("recorded_at") @db.Timestamptz
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  zone      Zone?     @relation(fields: [zoneId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+
+  @@index([warehouseId])
+  @@index([zoneId])
+  @@index([recordedAt])
+  @@map("warehouse_sensor_readings")
+}
+
+model StorageSlot {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  zoneId          String   @map("zone_id") @db.Uuid
+  warehouseId     String   @map("warehouse_id") @db.Uuid
+  name            String   @db.VarChar(50)
+  localX          Decimal  @map("local_x") @db.Decimal(10, 2)
+  localY          Decimal  @map("local_y") @db.Decimal(10, 2)
+  localZ          Decimal  @default(0) @map("local_z") @db.Decimal(10, 2)
+  widthM          Decimal  @map("width_m") @db.Decimal(8, 3)
+  depthM          Decimal  @map("depth_m") @db.Decimal(8, 3)
+  heightM         Decimal  @map("height_m") @db.Decimal(8, 3)
+  maxWeightKg     Decimal  @map("max_weight_kg") @db.Decimal(10, 2)
+  currentWeightKg Decimal  @default(0) @map("current_weight_kg") @db.Decimal(10, 2)
+  maxVolumeM3     Decimal  @map("max_volume_m3") @db.Decimal(10, 4)
+  currentVolumeM3 Decimal  @default(0) @map("current_volume_m3") @db.Decimal(10, 4)
+  aisleWidthM     Decimal? @map("aisle_width_m") @db.Decimal(8, 3)
+  zoneType        ZoneType @map("zone_type")
+  rowIndex        Int      @map("row_index") @db.SmallInt
+  colIndex        Int      @map("col_index") @db.SmallInt
+  colSpan         Int      @default(1) @map("col_span") @db.SmallInt
+  rowSpan         Int      @default(1) @map("row_span") @db.SmallInt
+  rotationDeg     Int      @default(0) @map("rotation_deg") @db.SmallInt
+  displayLabel    String?  @map("display_label") @db.VarChar(20)
+  isBlocked       Boolean  @default(false) @map("is_blocked")
+  isActive        Boolean  @default(true) @map("is_active")
+
+  zone      Zone      @relation(fields: [zoneId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+
+  allowedVehicles       SlotAllowedVehicle[]
+  locationNodes         LocationNode[]
+  assignments           Assignment[]
+  cargoItemsCurrent     CargoItem[]          @relation("currentSlot")
+  shipmentItems         ShipmentItem[]       @relation("assignedSlot")
+  transferItemsFrom     TransferOrderItem[]  @relation("fromSlot")
+  transferItemsProposed TransferOrderItem[]  @relation("proposedSlot")
+  transferItemsActual   TransferOrderItem[]  @relation("actualSlot")
+  outboundItemsFrom     OutboundOrderItem[]  @relation("fromSlot")
+  cargoEventsFrom       CargoItemEvent[]     @relation("fromSlot")
+  cargoEventsTo         CargoItemEvent[]     @relation("toSlot")
+
+  @@unique([zoneId, rowIndex, colIndex])
+  @@index([warehouseId])
+  @@index([zoneId])
+  @@index([zoneType])
+  @@index([isBlocked])
+  @@map("storage_slots")
+}
+
+model SlotAllowedVehicle {
+  slotId      String      @map("slot_id") @db.Uuid
+  vehicleType VehicleType @map("vehicle_type")
+
+  slot StorageSlot @relation(fields: [slotId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+
+  @@id([slotId, vehicleType])
+  @@map("slot_allowed_vehicles")
+}
+
+model Product {
+  id                   String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scenarioId           String          @map("scenario_id") @db.Uuid
+  name                 String          @db.VarChar(200)
+  sku                  String?         @db.VarChar(50)
+  category             ProductCategory
+  weightKg             Decimal         @map("weight_kg") @db.Decimal(10, 3)
+  volumeM3             Decimal         @map("volume_m3") @db.Decimal(10, 4)
+  widthM               Decimal?        @map("width_m") @db.Decimal(8, 3)
+  depthM               Decimal?        @map("depth_m") @db.Decimal(8, 3)
+  heightM              Decimal?        @map("height_m") @db.Decimal(8, 3)
+  requiredZone         ZoneType?       @map("required_zone")
+  requiredTempMin      Decimal?        @map("required_temp_min") @db.Decimal(5, 2)
+  requiredTempMax      Decimal?        @map("required_temp_max") @db.Decimal(5, 2)
+  demandFrequency      Int             @default(50) @map("demand_frequency") @db.SmallInt
+  priority             PriorityLevel   @default(medium)
+  vehicleType          VehicleType     @map("vehicle_type")
+  preferredEntryNodeId String?         @map("preferred_entry_node_id") @db.Uuid
+  preferredExitNodeId  String?         @map("preferred_exit_node_id") @db.Uuid
+  notes                String?
+  createdAt            DateTime        @default(now()) @map("created_at") @db.Timestamptz
+
+  scenario           Scenario      @relation(fields: [scenarioId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  preferredEntryNode LocationNode? @relation("entryNode", fields: [preferredEntryNodeId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  preferredExitNode  LocationNode? @relation("exitNode", fields: [preferredExitNodeId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  assignments        Assignment[]
+  cargoItems         CargoItem[]
+
+  @@index([scenarioId])
+  @@index([category])
+  @@index([requiredZone])
+  @@map("products")
+}
+
+model LocationNode {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scenarioId  String           @map("scenario_id") @db.Uuid
+  name        String           @db.VarChar(100)
+  code        String           @db.VarChar(30)
+  nodeType    LocationNodeType @map("node_type")
+  geoLat      Decimal?         @map("geo_lat") @db.Decimal(10, 7)
+  geoLng      Decimal?         @map("geo_lng") @db.Decimal(10, 7)
+  localX      Decimal?         @map("local_x") @db.Decimal(10, 2)
+  localY      Decimal?         @map("local_y") @db.Decimal(10, 2)
+  warehouseId String?          @map("warehouse_id") @db.Uuid
+  slotId      String?          @map("slot_id") @db.Uuid
+  isActive    Boolean          @default(true) @map("is_active")
+  metadata    Json?
+
+  scenario         Scenario          @relation(fields: [scenarioId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  warehouse        Warehouse?        @relation(fields: [warehouseId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  slot             StorageSlot?      @relation(fields: [slotId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  productsEntry    Product[]         @relation("entryNode")
+  productsExit     Product[]         @relation("exitNode")
+  roadsFrom        RoadEdge[]        @relation("fromNode")
+  roadsTo          RoadEdge[]        @relation("toNode")
+  inboundShipments InboundShipment[]
+  outboundOrders   OutboundOrder[]
+
+  @@unique([scenarioId, code])
+  @@index([scenarioId])
+  @@index([nodeType])
+  @@index([warehouseId])
+  @@map("location_nodes")
+}
+
+model RoadEdge {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scenarioId      String        @map("scenario_id") @db.Uuid
+  fromNodeId      String        @map("from_node_id") @db.Uuid
+  toNodeId        String        @map("to_node_id") @db.Uuid
+  distanceM       Decimal       @map("distance_m") @db.Decimal(10, 2)
+  direction       RoadDirection @default(two_way)
+  widthM          Decimal?      @map("width_m") @db.Decimal(8, 2)
+  congestionLevel Decimal       @default(0) @map("congestion_level") @db.Decimal(3, 2)
+  isBlocked       Boolean       @default(false) @map("is_blocked")
+  notes           String?
+
+  scenario        Scenario             @relation(fields: [scenarioId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  fromNode        LocationNode         @relation("fromNode", fields: [fromNodeId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  toNode          LocationNode         @relation("toNode", fields: [toNodeId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  allowedVehicles RoadAllowedVehicle[]
+
+  @@index([scenarioId])
+  @@index([fromNodeId])
+  @@index([toNodeId])
+  @@map("road_edges")
+}
+
+model RoadAllowedVehicle {
+  edgeId      String      @map("edge_id") @db.Uuid
+  vehicleType VehicleType @map("vehicle_type")
+
+  edge RoadEdge @relation(fields: [edgeId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+
+  @@id([edgeId, vehicleType])
+  @@map("road_allowed_vehicles")
+}
+
+model OptimizationRun {
+  id                   String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scenarioId           String                  @map("scenario_id") @db.Uuid
+  contextType          OptimizationContextType @map("context_type")
+  contextId            String?                 @map("context_id") @db.Uuid
+  algorithm            AlgorithmType
+  weightCapacityFit    Decimal                 @default(0.25) @map("weight_capacity_fit") @db.Decimal(4, 3)
+  weightMovementCost   Decimal                 @default(0.20) @map("weight_movement_cost") @db.Decimal(4, 3)
+  weightCategoryMatch  Decimal                 @default(0.20) @map("weight_category_match") @db.Decimal(4, 3)
+  weightVehicleAccess  Decimal                 @default(0.15) @map("weight_vehicle_access") @db.Decimal(4, 3)
+  weightDemandPriority Decimal                 @default(0.10) @map("weight_demand_priority") @db.Decimal(4, 3)
+  weightCongestion     Decimal                 @default(0.10) @map("weight_congestion") @db.Decimal(4, 3)
+  productsTotal        Int?                    @map("products_total")
+  productsAssigned     Int?                    @map("products_assigned")
+  productsUnassigned   Int?                    @map("products_unassigned")
+  hardViolations       Int?                    @default(0) @map("hard_violations")
+  totalMovementCost    Decimal?                @map("total_movement_cost") @db.Decimal(12, 2)
+  avgRetrievalCost     Decimal?                @map("avg_retrieval_cost") @db.Decimal(10, 2)
+  spaceUtilization     Decimal?                @map("space_utilization") @db.Decimal(5, 4)
+  congestionScore      Decimal?                @map("congestion_score") @db.Decimal(5, 4)
+  runtimeMs            Int?                    @map("runtime_ms")
+  optimizationScore    Decimal?                @map("optimization_score") @db.Decimal(5, 2)
+  resultSnapshot       Json?                   @map("result_snapshot")
+  createdAt            DateTime                @default(now()) @map("created_at") @db.Timestamptz
+
+  scenario       Scenario        @relation(fields: [scenarioId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  assignments    Assignment[]
+  shipmentItems  ShipmentItem[]
+  transferOrders TransferOrder[]
+
+  @@index([scenarioId])
+  @@index([contextType])
+  @@index([algorithm])
+  @@index([createdAt])
+  @@map("optimization_runs")
+}
+
+model Assignment {
+  id                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  runId               String           @map("run_id") @db.Uuid
+  productId           String           @map("product_id") @db.Uuid
+  warehouseId         String?          @map("warehouse_id") @db.Uuid
+  slotId              String?          @map("slot_id") @db.Uuid
+  status              AssignmentStatus @default(assigned)
+  finalScore          Decimal?         @map("final_score") @db.Decimal(5, 2)
+  capacityFitScore    Decimal?         @map("capacity_fit_score") @db.Decimal(5, 2)
+  movementCostScore   Decimal?         @map("movement_cost_score") @db.Decimal(5, 2)
+  categoryMatchScore  Decimal?         @map("category_match_score") @db.Decimal(5, 2)
+  vehicleAccessScore  Decimal?         @map("vehicle_access_score") @db.Decimal(5, 2)
+  demandPriorityScore Decimal?         @map("demand_priority_score") @db.Decimal(5, 2)
+  congestionScore     Decimal?         @map("congestion_score") @db.Decimal(5, 2)
+  routePath           Json?            @map("route_path")
+  routeCost           Decimal?         @map("route_cost") @db.Decimal(10, 2)
+  reasons             String[]
+  rejectedCandidates  Json?            @map("rejected_candidates")
+  createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  run       OptimizationRun @relation(fields: [runId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  product   Product         @relation(fields: [productId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  warehouse Warehouse?      @relation(fields: [warehouseId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  slot      StorageSlot?    @relation(fields: [slotId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+
+  @@index([runId])
+  @@index([productId])
+  @@index([slotId])
+  @@index([status])
+  @@map("assignments")
+}
+
+model CargoItem {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId          String          @map("product_id") @db.Uuid
+  scenarioId         String          @map("scenario_id") @db.Uuid
+  barcode            String?         @db.VarChar(100)
+  serialNumber       String?         @map("serial_number") @db.VarChar(100)
+  batchNumber        String?         @map("batch_number") @db.VarChar(50)
+  actualWeightKg     Decimal?        @map("actual_weight_kg") @db.Decimal(10, 3)
+  actualVolumeM3     Decimal?        @map("actual_volume_m3") @db.Decimal(10, 4)
+  actualWidthM       Decimal?        @map("actual_width_m") @db.Decimal(8, 3)
+  actualDepthM       Decimal?        @map("actual_depth_m") @db.Decimal(8, 3)
+  actualHeightM      Decimal?        @map("actual_height_m") @db.Decimal(8, 3)
+  status             CargoItemStatus @default(in_transit_inbound)
+  currentSlotId      String?         @map("current_slot_id") @db.Uuid
+  currentWarehouseId String?         @map("current_warehouse_id") @db.Uuid
+  currentTempC       Decimal?        @map("current_temp_c") @db.Decimal(5, 2)
+  lastTempCheckAt    DateTime?       @map("last_temp_check_at") @db.Timestamptz
+  manufactureDate    DateTime?       @map("manufacture_date") @db.Date
+  expiryDate         DateTime?       @map("expiry_date") @db.Date
+  notes              String?
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  product          Product             @relation(fields: [productId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  scenario         Scenario            @relation(fields: [scenarioId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  currentSlot      StorageSlot?        @relation("currentSlot", fields: [currentSlotId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  currentWarehouse Warehouse?          @relation("currentWarehouse", fields: [currentWarehouseId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  events           CargoItemEvent[]
+  shipmentItems    ShipmentItem[]
+  transferItems    TransferOrderItem[]
+  outboundItems    OutboundOrderItem[]
+
+  @@index([scenarioId])
+  @@index([productId])
+  @@index([status])
+  @@index([currentSlotId])
+  @@index([currentWarehouseId])
+  @@index([barcode])
+  @@map("cargo_items")
+}
+
+model CargoItemEvent {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cargoItemId     String       @map("cargo_item_id") @db.Uuid
+  eventType       String       @map("event_type") @db.VarChar(50)
+  fromSlotId      String?      @map("from_slot_id") @db.Uuid
+  toSlotId        String?      @map("to_slot_id") @db.Uuid
+  fromWarehouseId String?      @map("from_warehouse_id") @db.Uuid
+  toWarehouseId   String?      @map("to_warehouse_id") @db.Uuid
+  vehicleId       String?      @map("vehicle_id") @db.Uuid
+  temperatureC    Decimal?     @map("temperature_c") @db.Decimal(5, 2)
+  vehicleType     VehicleType? @map("vehicle_type")
+  notes           String?
+  occurredAt      DateTime     @default(now()) @map("occurred_at") @db.Timestamptz
+
+  cargoItem     CargoItem    @relation(fields: [cargoItemId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  fromSlot      StorageSlot? @relation("fromSlot", fields: [fromSlotId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  toSlot        StorageSlot? @relation("toSlot", fields: [toSlotId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  fromWarehouse Warehouse?   @relation("fromWarehouse", fields: [fromWarehouseId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  toWarehouse   Warehouse?   @relation("toWarehouse", fields: [toWarehouseId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  vehicle       Vehicle?     @relation(fields: [vehicleId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+
+  @@index([cargoItemId])
+  @@index([occurredAt])
+  @@index([eventType])
+  @@index([vehicleId])
+  @@map("cargo_item_events")
+}
+
+model InboundShipment {
+  id                   String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scenarioId           String         @map("scenario_id") @db.Uuid
+  code                 String         @db.VarChar(50)
+  sourceType           String         @map("source_type") @db.VarChar(20)
+  sourceName           String?        @map("source_name") @db.VarChar(100)
+  entryNodeId          String?        @map("entry_node_id") @db.Uuid
+  status               ShipmentStatus @default(pending)
+  arrivedAt            DateTime?      @map("arrived_at") @db.Timestamptz
+  dispatchingStartedAt DateTime?      @map("dispatching_started_at") @db.Timestamptz
+  completedAt          DateTime?      @map("completed_at") @db.Timestamptz
+  totalItems           Int            @default(0) @map("total_items")
+  assignedItems        Int            @default(0) @map("assigned_items")
+  failedItems          Int            @default(0) @map("failed_items")
+  notes                String?
+  createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  scenario      Scenario       @relation(fields: [scenarioId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  entryNode     LocationNode?  @relation(fields: [entryNodeId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  shipmentItems ShipmentItem[]
+
+  @@unique([scenarioId, code])
+  @@index([scenarioId])
+  @@index([status])
+  @@map("inbound_shipments")
+}
+
+model ShipmentItem {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shipmentId          String             @map("shipment_id") @db.Uuid
+  cargoItemId         String             @map("cargo_item_id") @db.Uuid
+  status              ShipmentItemStatus @default(waiting)
+  assignedWarehouseId String?            @map("assigned_warehouse_id") @db.Uuid
+  assignedSlotId      String?            @map("assigned_slot_id") @db.Uuid
+  assignmentScore     Decimal?           @map("assignment_score") @db.Decimal(5, 2)
+  assignmentReasons   String[]           @map("assignment_reasons")
+  rejectedCandidates  Json?              @map("rejected_candidates")
+  runId               String?            @map("run_id") @db.Uuid
+  assignedAt          DateTime?          @map("assigned_at") @db.Timestamptz
+  storedAt            DateTime?          @map("stored_at") @db.Timestamptz
+
+  shipment          InboundShipment  @relation(fields: [shipmentId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  cargoItem         CargoItem        @relation(fields: [cargoItemId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  assignedWarehouse Warehouse?       @relation("assignedWarehouse", fields: [assignedWarehouseId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  assignedSlot      StorageSlot?     @relation("assignedSlot", fields: [assignedSlotId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  run               OptimizationRun? @relation(fields: [runId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+
+  @@index([shipmentId])
+  @@index([cargoItemId])
+  @@index([status])
+  @@map("shipment_items")
+}
+
+model WarehouseIncident {
+  id                     String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  warehouseId            String           @map("warehouse_id") @db.Uuid
+  incidentType           IncidentType     @map("incident_type")
+  severity               IncidentSeverity
+  status                 IncidentStatus   @default(open)
+  title                  String           @db.VarChar(200)
+  description            String?
+  affectedTempC          Decimal?         @map("affected_temp_c") @db.Decimal(5, 2)
+  safeDurationMinutes    Int?             @map("safe_duration_minutes")
+  occurredAt             DateTime         @default(now()) @map("occurred_at") @db.Timestamptz
+  resolvedAt             DateTime?        @map("resolved_at") @db.Timestamptz
+  estimatedDowntimeHours Int?             @map("estimated_downtime_hours")
+  reportedBy             String?          @map("reported_by") @db.VarChar(100)
+  notes                  String?
+  createdAt              DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  warehouse      Warehouse       @relation(fields: [warehouseId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  transferOrders TransferOrder[]
+
+  @@index([warehouseId])
+  @@index([status])
+  @@index([severity])
+  @@index([occurredAt])
+  @@map("warehouse_incidents")
+}
+
+model TransferOrder {
+  id               String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scenarioId       String              @map("scenario_id") @db.Uuid
+  incidentId       String?             @map("incident_id") @db.Uuid
+  code             String              @db.VarChar(50)
+  status           TransferOrderStatus @default(draft)
+  priority         PriorityLevel       @default(medium)
+  fromWarehouseId  String              @map("from_warehouse_id") @db.Uuid
+  reason           String?
+  isEmergency      Boolean             @default(false) @map("is_emergency")
+  totalItems       Int                 @default(0) @map("total_items")
+  transferredItems Int                 @default(0) @map("transferred_items")
+  failedItems      Int                 @default(0) @map("failed_items")
+  runId            String?             @map("run_id") @db.Uuid
+  confirmedAt      DateTime?           @map("confirmed_at") @db.Timestamptz
+  completedAt      DateTime?           @map("completed_at") @db.Timestamptz
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  scenario      Scenario            @relation(fields: [scenarioId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  incident      WarehouseIncident?  @relation(fields: [incidentId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  fromWarehouse Warehouse           @relation("fromWarehouse", fields: [fromWarehouseId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  run           OptimizationRun?    @relation(fields: [runId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  items         TransferOrderItem[]
+
+  @@unique([scenarioId, code])
+  @@index([scenarioId])
+  @@index([fromWarehouseId])
+  @@index([status])
+  @@index([isEmergency])
+  @@map("transfer_orders")
+}
+
+model TransferOrderItem {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transferOrderId     String    @map("transfer_order_id") @db.Uuid
+  cargoItemId         String    @map("cargo_item_id") @db.Uuid
+  fromSlotId          String?   @map("from_slot_id") @db.Uuid
+  proposedWarehouseId String?   @map("proposed_warehouse_id") @db.Uuid
+  proposedSlotId      String?   @map("proposed_slot_id") @db.Uuid
+  proposalScore       Decimal?  @map("proposal_score") @db.Decimal(5, 2)
+  proposalReasons     String[]  @map("proposal_reasons")
+  actualWarehouseId   String?   @map("actual_warehouse_id") @db.Uuid
+  actualSlotId        String?   @map("actual_slot_id") @db.Uuid
+  vehicleId           String?   @map("vehicle_id") @db.Uuid
+  status              String    @default("pending") @db.VarChar(30)
+  transferredAt       DateTime? @map("transferred_at") @db.Timestamptz
+
+  transferOrder     TransferOrder @relation(fields: [transferOrderId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  cargoItem         CargoItem     @relation(fields: [cargoItemId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  fromSlot          StorageSlot?  @relation("fromSlot", fields: [fromSlotId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  proposedWarehouse Warehouse?    @relation("proposedWarehouse", fields: [proposedWarehouseId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  proposedSlot      StorageSlot?  @relation("proposedSlot", fields: [proposedSlotId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  actualWarehouse   Warehouse?    @relation("actualWarehouse", fields: [actualWarehouseId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  actualSlot        StorageSlot?  @relation("actualSlot", fields: [actualSlotId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  vehicle           Vehicle?      @relation(fields: [vehicleId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+
+  @@index([transferOrderId])
+  @@index([cargoItemId])
+  @@index([status])
+  @@map("transfer_order_items")
+}
+
+model OutboundOrder {
+  id              String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scenarioId      String                  @map("scenario_id") @db.Uuid
+  code            String                  @db.VarChar(50)
+  status          OutboundOrderStatus     @default(draft)
+  priority        PriorityLevel           @default(medium)
+  destinationType OutboundDestinationType @map("destination_type")
+  destinationName String?                 @map("destination_name") @db.VarChar(100)
+  exitNodeId      String?                 @map("exit_node_id") @db.Uuid
+  requestedAt     DateTime                @default(now()) @map("requested_at") @db.Timestamptz
+  deadlineAt      DateTime?               @map("deadline_at") @db.Timestamptz
+  totalItems      Int                     @default(0) @map("total_items")
+  pickedItems     Int                     @default(0) @map("picked_items")
+  deliveredItems  Int                     @default(0) @map("delivered_items")
+  notes           String?
+  createdAt       DateTime                @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  scenario Scenario            @relation(fields: [scenarioId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  exitNode LocationNode?       @relation(fields: [exitNodeId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  items    OutboundOrderItem[]
+
+  @@unique([scenarioId, code])
+  @@index([scenarioId])
+  @@index([status])
+  @@index([destinationType])
+  @@index([deadlineAt])
+  @@map("outbound_orders")
+}
+
+model OutboundOrderItem {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  outboundOrderId String       @map("outbound_order_id") @db.Uuid
+  cargoItemId     String       @map("cargo_item_id") @db.Uuid
+  fromSlotId      String?      @map("from_slot_id") @db.Uuid
+  fromWarehouseId String?      @map("from_warehouse_id") @db.Uuid
+  vehicleId       String?      @map("vehicle_id") @db.Uuid
+  routePath       Json?        @map("route_path")
+  routeCost       Decimal?     @map("route_cost") @db.Decimal(10, 2)
+  vehicleType     VehicleType? @map("vehicle_type")
+  status          String       @default("pending") @db.VarChar(30)
+  pickedAt        DateTime?    @map("picked_at") @db.Timestamptz
+  deliveredAt     DateTime?    @map("delivered_at") @db.Timestamptz
+
+  outboundOrder OutboundOrder @relation(fields: [outboundOrderId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  cargoItem     CargoItem     @relation(fields: [cargoItemId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  fromSlot      StorageSlot?  @relation("fromSlot", fields: [fromSlotId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  fromWarehouse Warehouse?    @relation("fromWarehouse", fields: [fromWarehouseId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  vehicle       Vehicle?      @relation(fields: [vehicleId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+
+  @@index([outboundOrderId])
+  @@index([cargoItemId])
+  @@index([status])
+  @@map("outbound_order_items")
+}
+
+model Vehicle {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scenarioId      String        @map("scenario_id") @db.Uuid
+  code            String        @db.VarChar(50)
+  name            String?       @db.VarChar(100)
+  vehicleType     VehicleType   @map("vehicle_type")
+  scope           VehicleScope
+  homeWarehouseId String?       @map("home_warehouse_id") @db.Uuid
+  status          VehicleStatus @default(available)
+  maxLoadKg       Decimal       @map("max_load_kg") @db.Decimal(10, 2)
+  maxVolumeM3     Decimal?      @map("max_volume_m3") @db.Decimal(10, 4)
+  widthM          Decimal?      @map("width_m") @db.Decimal(6, 3)
+  heightM         Decimal?      @map("height_m") @db.Decimal(6, 3)
+  speedRating     Int?          @map("speed_rating") @db.SmallInt
+  notes           String?
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  scenario      Scenario            @relation(fields: [scenarioId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  homeWarehouse Warehouse?          @relation(fields: [homeWarehouseId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  cargoEvents   CargoItemEvent[]
+  transferItems TransferOrderItem[]
+  outboundItems OutboundOrderItem[]
+
+  @@unique([scenarioId, code])
+  @@index([scenarioId])
+  @@index([vehicleType])
+  @@index([scope])
+  @@index([homeWarehouseId])
+  @@index([status])
+  @@map("vehicles")
+}

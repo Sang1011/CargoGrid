@@ -1,0 +1,45 @@
+services:
+  # ─── PostgreSQL ─────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: cargogrid-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cargogrid}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cargogrid}
+      POSTGRES_DB: ${POSTGRES_DB:-cargogrid}
+    ports:
+      - '5433:5432'   # expose ra localhost:5432 để dev connect trực tiếp
+    volumes:
+      - cargogrid_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-cargogrid} -d ${POSTGRES_DB:-cargogrid}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ─── NestJS API (chỉ dùng khi muốn chạy full-stack bằng Docker) ───────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cargogrid-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: ${PORT:-3000}
+      # Trong Docker phải dùng hostname "db" (tên service), không phải localhost
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cargogrid}:${POSTGRES_PASSWORD:-cargogrid}@db:5432/${POSTGRES_DB:-cargogrid}
+    ports:
+      - '${PORT:-3000}:3000'
+    # migrate deploy (safe, không reset data) rồi mới start server
+    command: sh -c "npx prisma migrate deploy && node dist/main.js"
+    profiles:
+      - full  # chỉ chạy khi: docker compose --profile full up
+
+volumes:
+  cargogrid_pgdata:
+    name: cargogrid_pgdata
