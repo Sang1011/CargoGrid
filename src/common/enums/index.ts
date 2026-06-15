@@ -73,3 +73,31 @@ export enum ScenarioStatus {
     ACTIVE = 'active',
     ARCHIVED = 'archived',
 }
+
+export enum CargoItemStatus {
+    IN_TRANSIT_INBOUND = 'in_transit_inbound',
+    STORED = 'stored',
+    IN_TRANSIT_TRANSFER = 'in_transit_transfer',
+    IN_TRANSIT_OUTBOUND = 'in_transit_outbound',
+    DELIVERED = 'delivered',
+    LOST = 'lost',
+    DAMAGED = 'damaged',
+}
+
+export enum ShipmentStatus {
+    PENDING = 'pending',
+    ARRIVED = 'arrived',
+    DISPATCHING = 'dispatching',
+    IN_PROGRESS = 'in_progress',
+    COMPLETED = 'completed',
+    PARTIAL = 'partial',
+    CANCELLED = 'cancelled',
+}
+
+export enum ShipmentItemStatus {
+    WAITING = 'waiting',
+    ASSIGNED = 'assigned',
+    IN_TRANSIT = 'in_transit',
+    STORED = 'stored',
+    FAILED = 'failed',
+}
