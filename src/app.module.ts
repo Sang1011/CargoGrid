@@ -12,9 +12,15 @@ import { LocationNodeModule } from './modules/location-node/location-node.module
 import { RoadEdgeModule } from './modules/road-edge/road-edge.module';
 import { CargoItemModule } from './modules/cargo-item/cargo-item.module';
 import { InboundShipmentModule } from './modules/inbound-shipment/inbound-shipment.module';
+import { ShipmentItemModule } from './modules/shipment-item/shipment-item.module';
+import { WarehouseIncidentModule } from './modules/warehouse-incident/warehouse-incident.module';
+import { TransferOrderModule } from './modules/transfer-order/transfer-order.module';
+import { TransferOrderItemModule } from './modules/transfer-order-item/transfer-order-item.module';
+import { OutboundOrderModule } from './modules/outbound-order/outbound-order.module';
+import { OutboundOrderItemModule } from './modules/outbound-order-item/outbound-order-item.module';
 
 @Module({
-  imports: [PrismaModule, ScenarioModule, ProductModule, VehicleModule, WarehouseModule, ZoneModule, StorageSlotModule, LocationNodeModule, RoadEdgeModule, CargoItemModule, InboundShipmentModule],
+  imports: [PrismaModule, ScenarioModule, ProductModule, VehicleModule, WarehouseModule, ZoneModule, StorageSlotModule, LocationNodeModule, RoadEdgeModule, CargoItemModule, InboundShipmentModule, ShipmentItemModule, WarehouseIncidentModule, TransferOrderModule, TransferOrderItemModule, OutboundOrderModule, OutboundOrderItemModule],
   controllers: [AppController],
   providers: [AppService],
 })
