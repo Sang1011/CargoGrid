@@ -17,12 +17,14 @@ import { CreateWarehouseIncidentDto } from '../application/dto/create-warehouse-
 import { UpdateWarehouseIncidentDto } from '../application/dto/update-warehouse-incident.dto';
 import { WarehouseIncidentResponse } from '../application/dto/warehouse-incident.response';
 import { IncidentSeverity, IncidentStatus } from 'src/common/enums';
+import { RequirePermission } from 'src/common/security/decorators';
 
 @ApiTags('WarehouseIncidents')
 @Controller('warehouse-incidents')
 export class WarehouseIncidentController {
     constructor(private readonly service: WarehouseIncidentService) { }
 
+    @RequirePermission('warehouse-incidents.read')
     @Get()
     @ApiOperation({ summary: 'List all warehouse incidents with optional filters' })
     @ApiQuery({ name: 'warehouseId', required: false })
@@ -38,6 +40,7 @@ export class WarehouseIncidentController {
         return entities.map(e => WarehouseIncidentResponse.fromEntity(e));
     }
 
+    @RequirePermission('warehouse-incidents.read')
     @Get(':id')
     @ApiOperation({ summary: 'Get warehouse incident by ID' })
     @ApiResponse({ status: 200, type: WarehouseIncidentResponse })
@@ -52,6 +55,7 @@ export class WarehouseIncidentController {
         return WarehouseIncidentResponse.fromEntity(entity, { warehouse });
     }
 
+    @RequirePermission('warehouse-incidents.write')
     @Post()
     @ApiOperation({ summary: 'Create warehouse incident' })
     @ApiResponse({ status: 201, type: WarehouseIncidentResponse })
@@ -60,6 +64,7 @@ export class WarehouseIncidentController {
         return WarehouseIncidentResponse.fromEntity(entity);
     }
 
+    @RequirePermission('warehouse-incidents.write')
     @Patch(':id')
     @ApiOperation({ summary: 'Update warehouse incident' })
     @ApiResponse({ status: 200, type: WarehouseIncidentResponse })
@@ -71,6 +76,7 @@ export class WarehouseIncidentController {
         return WarehouseIncidentResponse.fromEntity(entity);
     }
 
+    @RequirePermission('warehouse-incidents.delete')
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete warehouse incident' })
@@ -78,6 +84,7 @@ export class WarehouseIncidentController {
         await this.service.remove(id);
     }
 
+    @RequirePermission('warehouse-incidents.write')
     @Patch(':id/resolve')
     @ApiOperation({ summary: 'Resolve warehouse incident' })
     @ApiResponse({ status: 200, type: WarehouseIncidentResponse })
@@ -86,6 +93,7 @@ export class WarehouseIncidentController {
         return WarehouseIncidentResponse.fromEntity(entity);
     }
 
+    @RequirePermission('warehouse-incidents.write')
     @Patch(':id/close')
     @ApiOperation({ summary: 'Close warehouse incident' })
     @ApiResponse({ status: 200, type: WarehouseIncidentResponse })

@@ -17,12 +17,14 @@ import { CreateProductDto } from '../application/dto/create-product.dto';
 import { UpdateProductDto } from '../application/dto/update-product.dto';
 import { ProductResponse } from '../application/dto/product.response';
 import { ProductCategory, ZoneType } from 'src/common/enums';
+import { RequirePermission } from 'src/common/security/decorators';
 
 @ApiTags('Products')
 @Controller('products')
 export class ProductController {
     constructor(private readonly service: ProductService) { }
 
+    @RequirePermission('products.read')
     @Get()
     @ApiOperation({ summary: 'List all products with optional filters' })
     @ApiQuery({ name: 'scenarioId', required: false })
@@ -38,6 +40,7 @@ export class ProductController {
         return entities.map(e => ProductResponse.fromEntity(e));
     }
 
+    @RequirePermission('products.read')
     @Get(':id')
     @ApiOperation({ summary: 'Get product by ID' })
     @ApiResponse({ status: 200, type: ProductResponse })
@@ -51,6 +54,7 @@ export class ProductController {
         return ProductResponse.fromEntity(entity);
     }
 
+    @RequirePermission('products.write')
     @Post()
     @ApiOperation({ summary: 'Create product' })
     @ApiResponse({ status: 201, type: ProductResponse })
@@ -59,6 +63,7 @@ export class ProductController {
         return ProductResponse.fromEntity(entity);
     }
 
+    @RequirePermission('products.write')
     @Patch(':id')
     @ApiOperation({ summary: 'Update product' })
     @ApiResponse({ status: 200, type: ProductResponse })
@@ -70,6 +75,7 @@ export class ProductController {
         return ProductResponse.fromEntity(entity);
     }
 
+    @RequirePermission('products.delete')
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete product' })

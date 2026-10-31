@@ -1,4 +1,5 @@
 import { PrismaService } from '../../prisma/prisma.service';
+import { Page, paginate } from '../pagination/paginate';
 
 /**
  * TEntity  — domain entity class
@@ -19,6 +20,19 @@ export abstract class BaseRepository<TEntity> {
             orderBy: orderBy ?? { createdAt: 'desc' },
         });
         return rows.map((r: any) => this.toEntity(r));
+    }
+
+    async findPaged(options: {
+        where?: Record<string, any>;
+        orderBy?: Record<string, any> | Record<string, any>[];
+        page?: number;
+        limit?: number;
+    }): Promise<Page<TEntity>> {
+        const result = await paginate<any>(this.delegate, {
+            ...options,
+            orderBy: options.orderBy ?? { createdAt: 'desc' },
+        });
+        return { items: result.items.map((r: any) => this.toEntity(r)), meta: result.meta };
     }
 
     async findById(id: string): Promise<TEntity | null> {

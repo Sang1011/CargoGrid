@@ -14,12 +14,14 @@ import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { OutboundOrderItemService } from '../application/outbound-order-item.service';
 import { UpdateOutboundOrderItemDto } from '../application/dto/update-outbound-order-item.dto';
 import { OutboundOrderItemResponse } from '../application/dto/outbound-order-item.response';
+import { RequirePermission } from 'src/common/security/decorators';
 
 @ApiTags('OutboundOrderItems')
 @Controller('outbound-order-items')
 export class OutboundOrderItemController {
     constructor(private readonly service: OutboundOrderItemService) { }
 
+    @RequirePermission('outbound-order-items.read')
     @Get()
     @ApiOperation({ summary: 'List all outbound order items with optional filters' })
     @ApiQuery({ name: 'outboundOrderId', required: false })
@@ -33,6 +35,7 @@ export class OutboundOrderItemController {
         return entities.map(e => OutboundOrderItemResponse.fromEntity(e));
     }
 
+    @RequirePermission('outbound-order-items.read')
     @Get(':id')
     @ApiOperation({ summary: 'Get outbound order item by ID' })
     @ApiResponse({ status: 200, type: OutboundOrderItemResponse })
@@ -47,6 +50,7 @@ export class OutboundOrderItemController {
         return OutboundOrderItemResponse.fromEntity(entity, { cargoItem, fromSlot, fromWarehouse });
     }
 
+    @RequirePermission('outbound-order-items.write')
     @Patch(':id')
     @ApiOperation({ summary: 'Update outbound order item' })
     @ApiResponse({ status: 200, type: OutboundOrderItemResponse })
@@ -58,6 +62,7 @@ export class OutboundOrderItemController {
         return OutboundOrderItemResponse.fromEntity(entity);
     }
 
+    @RequirePermission('outbound-order-items.delete')
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete outbound order item' })

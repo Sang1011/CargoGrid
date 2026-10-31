@@ -13,6 +13,7 @@ import { seedInboundShipments } from './seeds/inbound-shipments';
 import { seedWarehouseIncidents } from './seeds/warehouse-incidents';
 import { seedTransferOrders } from './seeds/transfer-orders';
 import { seedOutboundOrders } from './seeds/outbound-orders';
+import { seedIdentity } from './seeds/identity';
 
 const prisma = new PrismaClient();
 
@@ -58,6 +59,9 @@ async function main() {
 
   console.log('Seeding outbound orders...');
   const outboundOrders = await seedOutboundOrders(prisma, scenarios, warehouses, cargoItems, storageSlots, locationNodes);
+
+  console.log('Seeding roles, permissions and demo users...');
+  await seedIdentity(prisma);
 
   console.log('Seed completed:', {
     scenarios: 2,

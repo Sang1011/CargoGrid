@@ -14,6 +14,8 @@ async function bootstrap() {
     .setTitle('CargoGrid API')
     .setVersion('0.0.1')
     .setDescription('Warehouse & Port Storage Optimization Simulator')
+    .addBearerAuth()
+    .addSecurityRequirements('bearer')
     .build();
 
   SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));

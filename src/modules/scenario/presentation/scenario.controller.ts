@@ -17,12 +17,14 @@ import { UpdateScenarioDto } from '../application/dto/update-scenario.dto';
 import { ScenarioService } from '../application/scenario.service';
 import { ScenarioStatus } from 'src/common/enums';
 import { ScenarioResponse } from '../application/dto/scenario.response';
+import { RequirePermission } from 'src/common/security/decorators';
 
 @ApiTags('Scenarios')
 @Controller('scenarios')
 export class ScenarioController {
     constructor(private readonly service: ScenarioService) { }
 
+    @RequirePermission('scenarios.read')
     @Get()
     @ApiOperation({ summary: 'List all scenarios' })
     @ApiQuery({ name: 'status', enum: ScenarioStatus, required: false })
@@ -32,6 +34,7 @@ export class ScenarioController {
         return entities.map(ScenarioResponse.fromEntity);
     }
 
+    @RequirePermission('scenarios.read')
     @Get(':id')
     @ApiOperation({ summary: 'Get scenario by ID' })
     @ApiResponse({ status: 200, type: ScenarioResponse })
@@ -40,6 +43,7 @@ export class ScenarioController {
         return ScenarioResponse.fromEntity(entity);
     }
 
+    @RequirePermission('scenarios.write')
     @Post()
     @ApiOperation({ summary: 'Create scenario' })
     @ApiResponse({ status: 201, type: ScenarioResponse })
@@ -48,6 +52,7 @@ export class ScenarioController {
         return ScenarioResponse.fromEntity(entity);
     }
 
+    @RequirePermission('scenarios.write')
     @Patch(':id')
     @ApiOperation({ summary: 'Update scenario' })
     @ApiResponse({ status: 200, type: ScenarioResponse })
@@ -59,6 +64,7 @@ export class ScenarioController {
         return ScenarioResponse.fromEntity(entity);
     }
 
+    @RequirePermission('scenarios.delete')
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete scenario' })
@@ -66,6 +72,7 @@ export class ScenarioController {
         await this.service.remove(id);
     }
 
+    @RequirePermission('scenarios.write')
     @Patch(':id/archive')
     @ApiOperation({ summary: 'Archive scenario' })
     @ApiResponse({ status: 200, type: ScenarioResponse })
@@ -74,6 +81,7 @@ export class ScenarioController {
         return ScenarioResponse.fromEntity(entity);
     }
 
+    @RequirePermission('scenarios.write')
     @Patch(':id/activate')
     @ApiOperation({ summary: 'Activate scenario' })
     @ApiResponse({ status: 200, type: ScenarioResponse })

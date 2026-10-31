@@ -5,6 +5,8 @@ import { CargoItemRepository } from '../infrastructure/cargo-item.repository';
 import { CreateCargoItemDto } from './dto/create-cargo-item.dto';
 import { UpdateCargoItemDto } from './dto/update-cargo-item.dto';
 import { CargoItemStatus } from 'src/common/enums';
+import { Page } from 'src/common/pagination/paginate';
+import { CargoItemQueryDto } from './dto/cargo-item-query.dto';
 
 @Injectable()
 export class CargoItemService extends BaseService<CargoItemEntity, CreateCargoItemDto, UpdateCargoItemDto> {
@@ -14,6 +16,10 @@ export class CargoItemService extends BaseService<CargoItemEntity, CreateCargoIt
 
     protected get entityName() {
         return 'CargoItem';
+    }
+
+    findPage(query: CargoItemQueryDto): Promise<Page<CargoItemEntity>> {
+        return this.cargoItemRepo.findPage(query);
     }
 
     findAllFiltered(filters: { scenarioId?: string; productId?: string; status?: CargoItemStatus; currentWarehouseId?: string }): Promise<CargoItemEntity[]> {

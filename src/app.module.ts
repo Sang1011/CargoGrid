@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -21,10 +21,17 @@ import { OutboundOrderItemModule } from './modules/outbound-order-item/outbound-
 import { AlgorithmsModule } from './modules/algorithms/algorithms.module';
 import { OptimizationModule } from './modules/optimization/optimization.module';
 import { HealthModule } from './health/health.module';
+import { SecurityModule } from './common/security/security.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { CorrelationIdMiddleware } from './common/correlation/correlation-id.middleware';
 
 @Module({
-  imports: [PrismaModule, ScenarioModule, ProductModule, VehicleModule, WarehouseModule, ZoneModule, StorageSlotModule, LocationNodeModule, RoadEdgeModule, CargoItemModule, InboundShipmentModule, ShipmentItemModule, WarehouseIncidentModule, TransferOrderModule, TransferOrderItemModule, OutboundOrderModule, OutboundOrderItemModule, AlgorithmsModule, OptimizationModule, HealthModule],
+  imports: [PrismaModule, ScenarioModule, ProductModule, VehicleModule, WarehouseModule, ZoneModule, StorageSlotModule, LocationNodeModule, RoadEdgeModule, CargoItemModule, InboundShipmentModule, ShipmentItemModule, WarehouseIncidentModule, TransferOrderModule, TransferOrderItemModule, OutboundOrderModule, OutboundOrderItemModule, AlgorithmsModule, OptimizationModule, HealthModule, SecurityModule, AuthModule],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(CorrelationIdMiddleware).forRoutes('{*path}');
+  }
+}

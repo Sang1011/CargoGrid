@@ -16,12 +16,14 @@ import { RoadEdgeService } from '../application/road-edge.service';
 import { CreateRoadEdgeDto } from '../application/dto/create-road-edge.dto';
 import { UpdateRoadEdgeDto } from '../application/dto/update-road-edge.dto';
 import { RoadEdgeResponse } from '../application/dto/road-edge.response';
+import { RequirePermission } from 'src/common/security/decorators';
 
 @ApiTags('RoadEdges')
 @Controller('road-edges')
 export class RoadEdgeController {
     constructor(private readonly service: RoadEdgeService) { }
 
+    @RequirePermission('road-edges.read')
     @Get()
     @ApiOperation({ summary: 'List all road edges with optional filters' })
     @ApiQuery({ name: 'scenarioId', required: false })
@@ -40,6 +42,7 @@ export class RoadEdgeController {
         return entities.map(e => RoadEdgeResponse.fromEntity(e));
     }
 
+    @RequirePermission('road-edges.read')
     @Get(':id')
     @ApiOperation({ summary: 'Get road edge by ID' })
     @ApiResponse({ status: 200, type: RoadEdgeResponse })
@@ -54,6 +57,7 @@ export class RoadEdgeController {
         return RoadEdgeResponse.fromEntity(entity, { fromNode, toNode, allowedVehicles });
     }
 
+    @RequirePermission('road-edges.write')
     @Post()
     @ApiOperation({ summary: 'Create road edge with optional allowed vehicles' })
     @ApiResponse({ status: 201, type: RoadEdgeResponse })
@@ -63,6 +67,7 @@ export class RoadEdgeController {
         return RoadEdgeResponse.fromEntity(entity);
     }
 
+    @RequirePermission('road-edges.write')
     @Patch(':id')
     @ApiOperation({ summary: 'Update road edge' })
     @ApiResponse({ status: 200, type: RoadEdgeResponse })
@@ -74,6 +79,7 @@ export class RoadEdgeController {
         return RoadEdgeResponse.fromEntity(entity);
     }
 
+    @RequirePermission('road-edges.delete')
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete road edge' })
@@ -81,6 +87,7 @@ export class RoadEdgeController {
         await this.service.remove(id);
     }
 
+    @RequirePermission('road-edges.write')
     @Patch(':id/block')
     @ApiOperation({ summary: 'Block road edge' })
     @ApiResponse({ status: 200, type: RoadEdgeResponse })
@@ -89,6 +96,7 @@ export class RoadEdgeController {
         return RoadEdgeResponse.fromEntity(entity);
     }
 
+    @RequirePermission('road-edges.write')
     @Patch(':id/unblock')
     @ApiOperation({ summary: 'Unblock road edge' })
     @ApiResponse({ status: 200, type: RoadEdgeResponse })

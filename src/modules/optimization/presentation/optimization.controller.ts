@@ -14,12 +14,14 @@ import { CompareOptimizationDto } from '../application/dto/compare-optimization.
 import { OptimizationRunResponse } from '../application/dto/optimization-run.response';
 import { AssignmentResponse } from '../application/dto/assignment.response';
 import { AlgorithmType, OptimizationContextType } from 'src/common/enums';
+import { RequirePermission } from 'src/common/security/decorators';
 
 @ApiTags('Optimization')
 @Controller('optimization')
 export class OptimizationController {
     constructor(private readonly service: OptimizationService) {}
 
+    @RequirePermission('allocation.run')
     @Post('run')
     @ApiOperation({ summary: 'Run a single optimization algorithm' })
     @ApiResponse({ status: 201, type: OptimizationRunResponse })
@@ -28,6 +30,7 @@ export class OptimizationController {
         return OptimizationRunResponse.fromEntity(entity);
     }
 
+    @RequirePermission('allocation.run')
     @Post('compare')
     @ApiOperation({ summary: 'Compare multiple optimization algorithms' })
     @ApiResponse({ status: 201, type: [OptimizationRunResponse] })
@@ -36,6 +39,7 @@ export class OptimizationController {
         return entities.map(OptimizationRunResponse.fromEntity);
     }
 
+    @RequirePermission('allocation.read')
     @Get('runs')
     @ApiOperation({ summary: 'List optimization runs by scenario' })
     @ApiQuery({ name: 'scenarioId', required: true })
@@ -51,6 +55,7 @@ export class OptimizationController {
         return entities.map(OptimizationRunResponse.fromEntity);
     }
 
+    @RequirePermission('allocation.read')
     @Get('runs/:id')
     @ApiOperation({ summary: 'Get optimization run detail with assignments' })
     @ApiResponse({ status: 200 })

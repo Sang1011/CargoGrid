@@ -4,6 +4,8 @@ import { BaseRepository } from 'src/common/base/base.repository';
 import { CargoItemEntity } from '../domain/cargo-item.entity';
 import { CargoItemStatus } from 'src/common/enums';
 import { Prisma } from '@prisma/client';
+import { Page, buildOrderBy } from 'src/common/pagination/paginate';
+import { CargoItemQueryDto } from '../application/dto/cargo-item-query.dto';
 
 const cargoInclude = {
     product: { select: { id: true, name: true, sku: true, category: true } },
@@ -55,6 +57,28 @@ export class CargoItemRepository extends BaseRepository<CargoItemEntity> {
         if (filters.status) where.status = filters.status;
         if (filters.currentWarehouseId) where.currentWarehouseId = filters.currentWarehouseId;
         return this.findAll(where);
+    }
+
+    /** Default order is oldest first (longest in storage), which is what a yard planner scans for. */
+    findPage(query: CargoItemQueryDto): Promise<Page<CargoItemEntity>> {
+        const where: Prisma.CargoItemWhereInput = {};
+        if (query.scenarioId) where.scenarioId = query.scenarioId;
+        if (query.productId) where.productId = query.productId;
+        if (query.status) where.status = query.status;
+        if (query.currentWarehouseId) where.currentWarehouseId = query.currentWarehouseId;
+        if (query.search) {
+            where.OR = [
+                { barcode: { contains: query.search, mode: 'insensitive' } },
+                { serialNumber: { contains: query.search, mode: 'insensitive' } },
+                { batchNumber: { contains: query.search, mode: 'insensitive' } },
+            ];
+        }
+        return this.findPaged({
+            where,
+            orderBy: buildOrderBy(query.sortBy, query.sortOrder, ['createdAt', 'updatedAt', 'status', 'barcode'], { createdAt: 'asc' }),
+            page: query.page,
+            limit: query.limit,
+        });
     }
 
     async findByIdWithRelations(id: string): Promise<(CargoItemEntity & { product?: any; currentWarehouse?: any; currentSlot?: any }) | null> {

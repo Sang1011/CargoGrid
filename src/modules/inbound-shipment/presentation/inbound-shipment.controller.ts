@@ -17,12 +17,14 @@ import { CreateInboundShipmentDto } from '../application/dto/create-inbound-ship
 import { UpdateInboundShipmentDto } from '../application/dto/update-inbound-shipment.dto';
 import { InboundShipmentResponse } from '../application/dto/inbound-shipment.response';
 import { ShipmentStatus } from 'src/common/enums';
+import { RequirePermission } from 'src/common/security/decorators';
 
 @ApiTags('InboundShipments')
 @Controller('inbound-shipments')
 export class InboundShipmentController {
     constructor(private readonly service: InboundShipmentService) { }
 
+    @RequirePermission('inbound-shipments.read')
     @Get()
     @ApiOperation({ summary: 'List all inbound shipments with optional filters' })
     @ApiQuery({ name: 'scenarioId', required: false })
@@ -36,6 +38,7 @@ export class InboundShipmentController {
         return entities.map(e => InboundShipmentResponse.fromEntity(e));
     }
 
+    @RequirePermission('inbound-shipments.read')
     @Get(':id')
     @ApiOperation({ summary: 'Get inbound shipment by ID' })
     @ApiResponse({ status: 200, type: InboundShipmentResponse })
@@ -50,6 +53,7 @@ export class InboundShipmentController {
         return InboundShipmentResponse.fromEntity(entity, { entryNode, shipmentItemCount });
     }
 
+    @RequirePermission('inbound-shipments.write')
     @Post()
     @ApiOperation({ summary: 'Create inbound shipment' })
     @ApiResponse({ status: 201, type: InboundShipmentResponse })
@@ -58,6 +62,7 @@ export class InboundShipmentController {
         return InboundShipmentResponse.fromEntity(entity);
     }
 
+    @RequirePermission('inbound-shipments.write')
     @Patch(':id')
     @ApiOperation({ summary: 'Update inbound shipment' })
     @ApiResponse({ status: 200, type: InboundShipmentResponse })
@@ -69,6 +74,7 @@ export class InboundShipmentController {
         return InboundShipmentResponse.fromEntity(entity);
     }
 
+    @RequirePermission('inbound-shipments.delete')
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete inbound shipment' })
@@ -76,6 +82,7 @@ export class InboundShipmentController {
         await this.service.remove(id);
     }
 
+    @RequirePermission('inbound-shipments.write')
     @Patch(':id/arrive')
     @ApiOperation({ summary: 'Mark inbound shipment as arrived' })
     @ApiResponse({ status: 200, type: InboundShipmentResponse })
@@ -84,6 +91,7 @@ export class InboundShipmentController {
         return InboundShipmentResponse.fromEntity(entity);
     }
 
+    @RequirePermission('inbound-shipments.write')
     @Patch(':id/complete')
     @ApiOperation({ summary: 'Mark inbound shipment as completed' })
     @ApiResponse({ status: 200, type: InboundShipmentResponse })
@@ -92,6 +100,7 @@ export class InboundShipmentController {
         return InboundShipmentResponse.fromEntity(entity);
     }
 
+    @RequirePermission('inbound-shipments.write')
     @Patch(':id/cancel')
     @ApiOperation({ summary: 'Cancel inbound shipment' })
     @ApiResponse({ status: 200, type: InboundShipmentResponse })

@@ -17,12 +17,14 @@ import { CreateStorageSlotDto } from '../application/dto/create-storage-slot.dto
 import { UpdateStorageSlotDto } from '../application/dto/update-storage-slot.dto';
 import { StorageSlotResponse } from '../application/dto/storage-slot.response';
 import { ZoneType } from 'src/common/enums';
+import { RequirePermission } from 'src/common/security/decorators';
 
 @ApiTags('StorageSlots')
 @Controller('storage-slots')
 export class StorageSlotController {
     constructor(private readonly service: StorageSlotService) { }
 
+    @RequirePermission('storage-slots.read')
     @Get()
     @ApiOperation({ summary: 'List all storage slots with optional filters' })
     @ApiQuery({ name: 'warehouseId', required: false })
@@ -44,6 +46,7 @@ export class StorageSlotController {
         return entities.map(e => StorageSlotResponse.fromEntity(e));
     }
 
+    @RequirePermission('storage-slots.read')
     @Get(':id')
     @ApiOperation({ summary: 'Get storage slot by ID' })
     @ApiResponse({ status: 200, type: StorageSlotResponse })
@@ -58,6 +61,7 @@ export class StorageSlotController {
         return StorageSlotResponse.fromEntity(entity, { zone, warehouse, allowedVehicles });
     }
 
+    @RequirePermission('storage-slots.write')
     @Post()
     @ApiOperation({ summary: 'Create storage slot with optional allowed vehicles' })
     @ApiResponse({ status: 201, type: StorageSlotResponse })
@@ -66,6 +70,7 @@ export class StorageSlotController {
         return StorageSlotResponse.fromEntity(entity);
     }
 
+    @RequirePermission('storage-slots.write')
     @Patch(':id')
     @ApiOperation({ summary: 'Update storage slot' })
     @ApiResponse({ status: 200, type: StorageSlotResponse })
@@ -77,6 +82,7 @@ export class StorageSlotController {
         return StorageSlotResponse.fromEntity(entity);
     }
 
+    @RequirePermission('storage-slots.delete')
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete storage slot' })
@@ -84,6 +90,7 @@ export class StorageSlotController {
         await this.service.remove(id);
     }
 
+    @RequirePermission('storage-slots.write')
     @Patch(':id/block')
     @ApiOperation({ summary: 'Block storage slot' })
     @ApiResponse({ status: 200, type: StorageSlotResponse })
@@ -92,6 +99,7 @@ export class StorageSlotController {
         return StorageSlotResponse.fromEntity(entity);
     }
 
+    @RequirePermission('storage-slots.write')
     @Patch(':id/unblock')
     @ApiOperation({ summary: 'Unblock storage slot' })
     @ApiResponse({ status: 200, type: StorageSlotResponse })

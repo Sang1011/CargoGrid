@@ -17,12 +17,14 @@ import { CreateOutboundOrderDto } from '../application/dto/create-outbound-order
 import { UpdateOutboundOrderDto } from '../application/dto/update-outbound-order.dto';
 import { OutboundOrderResponse } from '../application/dto/outbound-order.response';
 import { OutboundDestinationType, OutboundOrderStatus } from 'src/common/enums';
+import { RequirePermission } from 'src/common/security/decorators';
 
 @ApiTags('OutboundOrders')
 @Controller('outbound-orders')
 export class OutboundOrderController {
     constructor(private readonly service: OutboundOrderService) { }
 
+    @RequirePermission('outbound-orders.read')
     @Get()
     @ApiOperation({ summary: 'List all outbound orders with optional filters' })
     @ApiQuery({ name: 'scenarioId', required: false })
@@ -38,6 +40,7 @@ export class OutboundOrderController {
         return entities.map(e => OutboundOrderResponse.fromEntity(e));
     }
 
+    @RequirePermission('outbound-orders.read')
     @Get(':id')
     @ApiOperation({ summary: 'Get outbound order by ID' })
     @ApiResponse({ status: 200, type: OutboundOrderResponse })
@@ -52,6 +55,7 @@ export class OutboundOrderController {
         return OutboundOrderResponse.fromEntity(entity, { exitNode, itemCount });
     }
 
+    @RequirePermission('outbound-orders.write')
     @Post()
     @ApiOperation({ summary: 'Create outbound order' })
     @ApiResponse({ status: 201, type: OutboundOrderResponse })
@@ -60,6 +64,7 @@ export class OutboundOrderController {
         return OutboundOrderResponse.fromEntity(entity);
     }
 
+    @RequirePermission('outbound-orders.write')
     @Patch(':id')
     @ApiOperation({ summary: 'Update outbound order' })
     @ApiResponse({ status: 200, type: OutboundOrderResponse })
@@ -71,6 +76,7 @@ export class OutboundOrderController {
         return OutboundOrderResponse.fromEntity(entity);
     }
 
+    @RequirePermission('outbound-orders.delete')
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete outbound order' })
@@ -78,6 +84,7 @@ export class OutboundOrderController {
         await this.service.remove(id);
     }
 
+    @RequirePermission('outbound-orders.write')
     @Patch(':id/confirm')
     @ApiOperation({ summary: 'Confirm outbound order' })
     @ApiResponse({ status: 200, type: OutboundOrderResponse })
@@ -86,6 +93,7 @@ export class OutboundOrderController {
         return OutboundOrderResponse.fromEntity(entity);
     }
 
+    @RequirePermission('outbound-orders.write')
     @Patch(':id/complete')
     @ApiOperation({ summary: 'Complete outbound order' })
     @ApiResponse({ status: 200, type: OutboundOrderResponse })
@@ -94,6 +102,7 @@ export class OutboundOrderController {
         return OutboundOrderResponse.fromEntity(entity);
     }
 
+    @RequirePermission('outbound-orders.write')
     @Patch(':id/cancel')
     @ApiOperation({ summary: 'Cancel outbound order' })
     @ApiResponse({ status: 200, type: OutboundOrderResponse })

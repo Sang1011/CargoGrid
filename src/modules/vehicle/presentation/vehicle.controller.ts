@@ -18,12 +18,14 @@ import { UpdateVehicleDto } from '../application/dto/update-vehicle.dto';
 import { UpdateVehicleStatusDto } from '../application/dto/update-vehicle-status.dto';
 import { VehicleResponse } from '../application/dto/vehicle.response';
 import { VehicleScope, VehicleStatus, VehicleType } from 'src/common/enums';
+import { RequirePermission } from 'src/common/security/decorators';
 
 @ApiTags('Vehicles')
 @Controller('vehicles')
 export class VehicleController {
     constructor(private readonly service: VehicleService) { }
 
+    @RequirePermission('vehicles.read')
     @Get()
     @ApiOperation({ summary: 'List all vehicles with optional filters' })
     @ApiQuery({ name: 'scenarioId', required: false })
@@ -41,6 +43,7 @@ export class VehicleController {
         return entities.map(e => VehicleResponse.fromEntity(e));
     }
 
+    @RequirePermission('vehicles.read')
     @Get(':id')
     @ApiOperation({ summary: 'Get vehicle by ID' })
     @ApiResponse({ status: 200, type: VehicleResponse })
@@ -55,6 +58,7 @@ export class VehicleController {
         return VehicleResponse.fromEntity(entity, { homeWarehouse });
     }
 
+    @RequirePermission('vehicles.write')
     @Post()
     @ApiOperation({ summary: 'Create vehicle' })
     @ApiResponse({ status: 201, type: VehicleResponse })
@@ -63,6 +67,7 @@ export class VehicleController {
         return VehicleResponse.fromEntity(entity);
     }
 
+    @RequirePermission('vehicles.write')
     @Patch(':id')
     @ApiOperation({ summary: 'Update vehicle' })
     @ApiResponse({ status: 200, type: VehicleResponse })
@@ -74,6 +79,7 @@ export class VehicleController {
         return VehicleResponse.fromEntity(entity);
     }
 
+    @RequirePermission('vehicles.delete')
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete vehicle' })
@@ -81,6 +87,7 @@ export class VehicleController {
         await this.service.remove(id);
     }
 
+    @RequirePermission('vehicles.write')
     @Patch(':id/status')
     @ApiOperation({ summary: 'Update vehicle status' })
     @ApiResponse({ status: 200, type: VehicleResponse })

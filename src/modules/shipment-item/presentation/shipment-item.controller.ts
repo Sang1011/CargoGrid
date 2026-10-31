@@ -15,12 +15,14 @@ import { ShipmentItemService } from '../application/shipment-item.service';
 import { UpdateShipmentItemDto } from '../application/dto/update-shipment-item.dto';
 import { ShipmentItemResponse } from '../application/dto/shipment-item.response';
 import { ShipmentItemStatus } from 'src/common/enums';
+import { RequirePermission } from 'src/common/security/decorators';
 
 @ApiTags('ShipmentItems')
 @Controller('shipment-items')
 export class ShipmentItemController {
     constructor(private readonly service: ShipmentItemService) { }
 
+    @RequirePermission('shipment-items.read')
     @Get()
     @ApiOperation({ summary: 'List all shipment items with optional filters' })
     @ApiQuery({ name: 'shipmentId', required: false })
@@ -34,6 +36,7 @@ export class ShipmentItemController {
         return entities.map(e => ShipmentItemResponse.fromEntity(e));
     }
 
+    @RequirePermission('shipment-items.read')
     @Get(':id')
     @ApiOperation({ summary: 'Get shipment item by ID' })
     @ApiResponse({ status: 200, type: ShipmentItemResponse })
@@ -48,6 +51,7 @@ export class ShipmentItemController {
         return ShipmentItemResponse.fromEntity(entity, { cargoItem, assignedWarehouse, assignedSlot });
     }
 
+    @RequirePermission('shipment-items.write')
     @Patch(':id')
     @ApiOperation({ summary: 'Update shipment item' })
     @ApiResponse({ status: 200, type: ShipmentItemResponse })
@@ -59,6 +63,7 @@ export class ShipmentItemController {
         return ShipmentItemResponse.fromEntity(entity);
     }
 
+    @RequirePermission('shipment-items.delete')
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete shipment item' })

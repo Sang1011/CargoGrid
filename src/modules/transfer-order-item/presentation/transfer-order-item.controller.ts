@@ -14,12 +14,14 @@ import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TransferOrderItemService } from '../application/transfer-order-item.service';
 import { UpdateTransferOrderItemDto } from '../application/dto/update-transfer-order-item.dto';
 import { TransferOrderItemResponse } from '../application/dto/transfer-order-item.response';
+import { RequirePermission } from 'src/common/security/decorators';
 
 @ApiTags('TransferOrderItems')
 @Controller('transfer-order-items')
 export class TransferOrderItemController {
     constructor(private readonly service: TransferOrderItemService) { }
 
+    @RequirePermission('transfer-order-items.read')
     @Get()
     @ApiOperation({ summary: 'List all transfer order items with optional filters' })
     @ApiQuery({ name: 'transferOrderId', required: false })
@@ -33,6 +35,7 @@ export class TransferOrderItemController {
         return entities.map(e => TransferOrderItemResponse.fromEntity(e));
     }
 
+    @RequirePermission('transfer-order-items.read')
     @Get(':id')
     @ApiOperation({ summary: 'Get transfer order item by ID' })
     @ApiResponse({ status: 200, type: TransferOrderItemResponse })
@@ -47,6 +50,7 @@ export class TransferOrderItemController {
         return TransferOrderItemResponse.fromEntity(entity, { cargoItem, fromSlot, proposedWarehouse, proposedSlot, actualWarehouse, actualSlot });
     }
 
+    @RequirePermission('transfer-order-items.write')
     @Patch(':id')
     @ApiOperation({ summary: 'Update transfer order item' })
     @ApiResponse({ status: 200, type: TransferOrderItemResponse })
@@ -58,6 +62,7 @@ export class TransferOrderItemController {
         return TransferOrderItemResponse.fromEntity(entity);
     }
 
+    @RequirePermission('transfer-order-items.delete')
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete transfer order item' })

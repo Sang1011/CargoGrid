@@ -11,35 +11,29 @@ import {
     Post,
     Query,
 } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CargoItemService } from '../application/cargo-item.service';
 import { CreateCargoItemDto } from '../application/dto/create-cargo-item.dto';
 import { UpdateCargoItemDto } from '../application/dto/update-cargo-item.dto';
 import { CargoItemResponse } from '../application/dto/cargo-item.response';
-import { CargoItemStatus } from 'src/common/enums';
+import { CargoItemQueryDto } from '../application/dto/cargo-item-query.dto';
+import { PageMeta } from 'src/common/pagination/paginate';
+import { RequirePermission } from 'src/common/security/decorators';
 
 @ApiTags('CargoItems')
 @Controller('cargo-items')
 export class CargoItemController {
     constructor(private readonly service: CargoItemService) { }
 
+    @RequirePermission('cargo-items.read')
     @Get()
-    @ApiOperation({ summary: 'List all cargo items with optional filters' })
-    @ApiQuery({ name: 'scenarioId', required: false })
-    @ApiQuery({ name: 'productId', required: false })
-    @ApiQuery({ name: 'status', enum: CargoItemStatus, required: false })
-    @ApiQuery({ name: 'currentWarehouseId', required: false })
-    @ApiResponse({ status: 200, type: [CargoItemResponse] })
-    async findAll(
-        @Query('scenarioId') scenarioId?: string,
-        @Query('productId') productId?: string,
-        @Query('status') status?: CargoItemStatus,
-        @Query('currentWarehouseId') currentWarehouseId?: string,
-    ): Promise<CargoItemResponse[]> {
-        const entities = await this.service.findAllFiltered({ scenarioId, productId, status, currentWarehouseId });
-        return entities.map(e => CargoItemResponse.fromEntity(e));
+    @ApiOperation({ summary: 'List cargo items (paginated; oldest first by default)' })
+    async findAll(@Query() query: CargoItemQueryDto): Promise<{ items: CargoItemResponse[]; meta: PageMeta }> {
+        const { items, meta } = await this.service.findPage(query);
+        return { items: items.map(e => CargoItemResponse.fromEntity(e)), meta };
     }
 
+    @RequirePermission('cargo-items.read')
     @Get(':id')
     @ApiOperation({ summary: 'Get cargo item by ID' })
     @ApiResponse({ status: 200, type: CargoItemResponse })
@@ -54,6 +48,7 @@ export class CargoItemController {
         return CargoItemResponse.fromEntity(entity, { product, currentWarehouse, currentSlot });
     }
 
+    @RequirePermission('cargo-items.write')
     @Post()
     @ApiOperation({ summary: 'Create cargo item' })
     @ApiResponse({ status: 201, type: CargoItemResponse })
@@ -62,6 +57,7 @@ export class CargoItemController {
         return CargoItemResponse.fromEntity(entity);
     }
 
+    @RequirePermission('cargo-items.write')
     @Patch(':id')
     @ApiOperation({ summary: 'Update cargo item' })
     @ApiResponse({ status: 200, type: CargoItemResponse })
@@ -73,6 +69,7 @@ export class CargoItemController {
         return CargoItemResponse.fromEntity(entity);
     }
 
+    @RequirePermission('cargo-items.delete')
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete cargo item' })

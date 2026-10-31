@@ -17,12 +17,14 @@ import { CreateLocationNodeDto } from '../application/dto/create-location-node.d
 import { UpdateLocationNodeDto } from '../application/dto/update-location-node.dto';
 import { LocationNodeResponse } from '../application/dto/location-node.response';
 import { LocationNodeType } from 'src/common/enums';
+import { RequirePermission } from 'src/common/security/decorators';
 
 @ApiTags('LocationNodes')
 @Controller('location-nodes')
 export class LocationNodeController {
     constructor(private readonly service: LocationNodeService) { }
 
+    @RequirePermission('location-nodes.read')
     @Get()
     @ApiOperation({ summary: 'List all location nodes with optional filters' })
     @ApiQuery({ name: 'scenarioId', required: false })
@@ -41,6 +43,7 @@ export class LocationNodeController {
         return entities.map(e => LocationNodeResponse.fromEntity(e));
     }
 
+    @RequirePermission('location-nodes.read')
     @Get(':id')
     @ApiOperation({ summary: 'Get location node by ID' })
     @ApiResponse({ status: 200, type: LocationNodeResponse })
@@ -55,6 +58,7 @@ export class LocationNodeController {
         return LocationNodeResponse.fromEntity(entity, { warehouse, slot });
     }
 
+    @RequirePermission('location-nodes.write')
     @Post()
     @ApiOperation({ summary: 'Create location node' })
     @ApiResponse({ status: 201, type: LocationNodeResponse })
@@ -63,6 +67,7 @@ export class LocationNodeController {
         return LocationNodeResponse.fromEntity(entity);
     }
 
+    @RequirePermission('location-nodes.write')
     @Patch(':id')
     @ApiOperation({ summary: 'Update location node' })
     @ApiResponse({ status: 200, type: LocationNodeResponse })
@@ -74,6 +79,7 @@ export class LocationNodeController {
         return LocationNodeResponse.fromEntity(entity);
     }
 
+    @RequirePermission('location-nodes.delete')
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete location node' })

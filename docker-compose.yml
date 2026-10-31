@@ -31,6 +31,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: ${PORT:-3000}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env (openssl rand -hex 32)}
       # Trong Docker phải dùng hostname "db" (tên service), không phải localhost
       DATABASE_URL: postgresql://${POSTGRES_USER:-cargogrid}:${POSTGRES_PASSWORD:-cargogrid}@db:5432/${POSTGRES_DB:-cargogrid}
     ports:

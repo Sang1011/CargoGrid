@@ -17,12 +17,14 @@ import { CreateWarehouseDto } from '../application/dto/create-warehouse.dto';
 import { UpdateWarehouseDto } from '../application/dto/update-warehouse.dto';
 import { WarehouseResponse } from '../application/dto/warehouse.response';
 import { WarehouseType } from 'src/common/enums';
+import { RequirePermission } from 'src/common/security/decorators';
 
 @ApiTags('Warehouses')
 @Controller('warehouses')
 export class WarehouseController {
     constructor(private readonly service: WarehouseService) { }
 
+    @RequirePermission('warehouses.read')
     @Get()
     @ApiOperation({ summary: 'List all warehouses with optional filters' })
     @ApiQuery({ name: 'scenarioId', required: false })
@@ -39,6 +41,7 @@ export class WarehouseController {
         return entities.map(e => WarehouseResponse.fromEntity(e));
     }
 
+    @RequirePermission('warehouses.read')
     @Get(':id')
     @ApiOperation({ summary: 'Get warehouse by ID' })
     @ApiResponse({ status: 200, type: WarehouseResponse })
@@ -53,6 +56,7 @@ export class WarehouseController {
         return WarehouseResponse.fromEntity(entity, { allowedVehicles });
     }
 
+    @RequirePermission('warehouses.write')
     @Post()
     @ApiOperation({ summary: 'Create warehouse with optional allowed vehicles' })
     @ApiResponse({ status: 201, type: WarehouseResponse })
@@ -61,6 +65,7 @@ export class WarehouseController {
         return WarehouseResponse.fromEntity(entity);
     }
 
+    @RequirePermission('warehouses.write')
     @Patch(':id')
     @ApiOperation({ summary: 'Update warehouse' })
     @ApiResponse({ status: 200, type: WarehouseResponse })
@@ -72,6 +77,7 @@ export class WarehouseController {
         return WarehouseResponse.fromEntity(entity);
     }
 
+    @RequirePermission('warehouses.delete')
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete warehouse' })
@@ -79,6 +85,7 @@ export class WarehouseController {
         await this.service.remove(id);
     }
 
+    @RequirePermission('warehouses.write')
     @Patch(':id/deactivate')
     @ApiOperation({ summary: 'Deactivate warehouse' })
     @ApiResponse({ status: 200, type: WarehouseResponse })
@@ -87,6 +94,7 @@ export class WarehouseController {
         return WarehouseResponse.fromEntity(entity);
     }
 
+    @RequirePermission('warehouses.write')
     @Patch(':id/activate')
     @ApiOperation({ summary: 'Activate warehouse' })
     @ApiResponse({ status: 200, type: WarehouseResponse })

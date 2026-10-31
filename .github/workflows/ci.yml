@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: postgresql://cargogrid:cargogrid@127.0.0.1:5432/cargogrid?schema=public
+      JWT_SECRET: ci-only-secret-not-for-production-use
     services:
       postgres:
         image: postgres:16-alpine

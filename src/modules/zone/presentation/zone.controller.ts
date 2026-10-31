@@ -17,12 +17,14 @@ import { CreateZoneDto } from '../application/dto/create-zone.dto';
 import { UpdateZoneDto } from '../application/dto/update-zone.dto';
 import { ZoneResponse } from '../application/dto/zone.response';
 import { ZoneType } from 'src/common/enums';
+import { RequirePermission } from 'src/common/security/decorators';
 
 @ApiTags('Zones')
 @Controller('zones')
 export class ZoneController {
     constructor(private readonly service: ZoneService) { }
 
+    @RequirePermission('zones.read')
     @Get()
     @ApiOperation({ summary: 'List all zones with optional filters' })
     @ApiQuery({ name: 'warehouseId', required: false })
@@ -39,6 +41,7 @@ export class ZoneController {
         return entities.map(e => ZoneResponse.fromEntity(e));
     }
 
+    @RequirePermission('zones.read')
     @Get(':id')
     @ApiOperation({ summary: 'Get zone by ID' })
     @ApiResponse({ status: 200, type: ZoneResponse })
@@ -53,6 +56,7 @@ export class ZoneController {
         return ZoneResponse.fromEntity(entity, { warehouse });
     }
 
+    @RequirePermission('zones.write')
     @Post()
     @ApiOperation({ summary: 'Create zone' })
     @ApiResponse({ status: 201, type: ZoneResponse })
@@ -61,6 +65,7 @@ export class ZoneController {
         return ZoneResponse.fromEntity(entity);
     }
 
+    @RequirePermission('zones.write')
     @Patch(':id')
     @ApiOperation({ summary: 'Update zone' })
     @ApiResponse({ status: 200, type: ZoneResponse })
@@ -72,6 +77,7 @@ export class ZoneController {
         return ZoneResponse.fromEntity(entity);
     }
 
+    @RequirePermission('zones.delete')
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete zone' })

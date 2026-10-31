@@ -17,12 +17,14 @@ import { CreateTransferOrderDto } from '../application/dto/create-transfer-order
 import { UpdateTransferOrderDto } from '../application/dto/update-transfer-order.dto';
 import { TransferOrderResponse } from '../application/dto/transfer-order.response';
 import { TransferOrderStatus } from 'src/common/enums';
+import { RequirePermission } from 'src/common/security/decorators';
 
 @ApiTags('TransferOrders')
 @Controller('transfer-orders')
 export class TransferOrderController {
     constructor(private readonly service: TransferOrderService) { }
 
+    @RequirePermission('transfer-orders.read')
     @Get()
     @ApiOperation({ summary: 'List all transfer orders with optional filters' })
     @ApiQuery({ name: 'scenarioId', required: false })
@@ -41,6 +43,7 @@ export class TransferOrderController {
         return entities.map(e => TransferOrderResponse.fromEntity(e));
     }
 
+    @RequirePermission('transfer-orders.read')
     @Get(':id')
     @ApiOperation({ summary: 'Get transfer order by ID' })
     @ApiResponse({ status: 200, type: TransferOrderResponse })
@@ -55,6 +58,7 @@ export class TransferOrderController {
         return TransferOrderResponse.fromEntity(entity, { fromWarehouse, incident, itemCount });
     }
 
+    @RequirePermission('transfer-orders.write')
     @Post()
     @ApiOperation({ summary: 'Create transfer order' })
     @ApiResponse({ status: 201, type: TransferOrderResponse })
@@ -63,6 +67,7 @@ export class TransferOrderController {
         return TransferOrderResponse.fromEntity(entity);
     }
 
+    @RequirePermission('transfer-orders.write')
     @Patch(':id')
     @ApiOperation({ summary: 'Update transfer order' })
     @ApiResponse({ status: 200, type: TransferOrderResponse })
@@ -74,6 +79,7 @@ export class TransferOrderController {
         return TransferOrderResponse.fromEntity(entity);
     }
 
+    @RequirePermission('transfer-orders.delete')
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete transfer order' })
@@ -81,6 +87,7 @@ export class TransferOrderController {
         await this.service.remove(id);
     }
 
+    @RequirePermission('transfer-orders.write')
     @Patch(':id/confirm')
     @ApiOperation({ summary: 'Confirm transfer order' })
     @ApiResponse({ status: 200, type: TransferOrderResponse })
@@ -89,6 +96,7 @@ export class TransferOrderController {
         return TransferOrderResponse.fromEntity(entity);
     }
 
+    @RequirePermission('transfer-orders.write')
     @Patch(':id/complete')
     @ApiOperation({ summary: 'Complete transfer order' })
     @ApiResponse({ status: 200, type: TransferOrderResponse })
@@ -97,6 +105,7 @@ export class TransferOrderController {
         return TransferOrderResponse.fromEntity(entity);
     }
 
+    @RequirePermission('transfer-orders.write')
     @Patch(':id/cancel')
     @ApiOperation({ summary: 'Cancel transfer order' })
     @ApiResponse({ status: 200, type: TransferOrderResponse })
