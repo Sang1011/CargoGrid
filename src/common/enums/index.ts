@@ -149,3 +149,26 @@ export enum OutboundDestinationType {
     GATE = 'gate',
     PORT = 'port',
 }
+
+export enum AlgorithmType {
+    RANDOM = 'random',
+    GREEDY = 'greedy',
+    GREEDY_LOCAL_SEARCH = 'greedy_local_search',
+    SIMULATED_ANNEALING = 'simulated_annealing',
+}
+
+export enum OptimizationContextType {
+    INBOUND = 'inbound',
+    TRANSFER = 'transfer',
+    OUTBOUND = 'outbound',
+    BENCHMARK = 'benchmark',
+}
+
+export enum AssignmentStatus {
+    PENDING = 'pending',
+    ASSIGNED = 'assigned',
+    IN_TRANSIT = 'in_transit',
+    STORED = 'stored',
+    RETRIEVED = 'retrieved',
+    CANCELLED = 'cancelled',
+}

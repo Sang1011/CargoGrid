@@ -18,9 +18,12 @@ import { TransferOrderModule } from './modules/transfer-order/transfer-order.mod
 import { TransferOrderItemModule } from './modules/transfer-order-item/transfer-order-item.module';
 import { OutboundOrderModule } from './modules/outbound-order/outbound-order.module';
 import { OutboundOrderItemModule } from './modules/outbound-order-item/outbound-order-item.module';
+import { AlgorithmsModule } from './modules/algorithms/algorithms.module';
+import { OptimizationModule } from './modules/optimization/optimization.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
-  imports: [PrismaModule, ScenarioModule, ProductModule, VehicleModule, WarehouseModule, ZoneModule, StorageSlotModule, LocationNodeModule, RoadEdgeModule, CargoItemModule, InboundShipmentModule, ShipmentItemModule, WarehouseIncidentModule, TransferOrderModule, TransferOrderItemModule, OutboundOrderModule, OutboundOrderItemModule],
+  imports: [PrismaModule, ScenarioModule, ProductModule, VehicleModule, WarehouseModule, ZoneModule, StorageSlotModule, LocationNodeModule, RoadEdgeModule, CargoItemModule, InboundShipmentModule, ShipmentItemModule, WarehouseIncidentModule, TransferOrderModule, TransferOrderItemModule, OutboundOrderModule, OutboundOrderItemModule, AlgorithmsModule, OptimizationModule, HealthModule],
   controllers: [AppController],
   providers: [AppService],
 })
