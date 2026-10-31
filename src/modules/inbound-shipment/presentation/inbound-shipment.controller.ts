@@ -5,6 +5,7 @@ import {
     Get,
     HttpCode,
     HttpStatus,
+    NotFoundException,
     Param,
     ParseUUIDPipe,
     Patch,
@@ -46,7 +47,6 @@ export class InboundShipmentController {
         const repo = (this.service as any).shipmentRepo;
         const result = await repo.findByIdWithRelations(id);
         if (!result) {
-            const { NotFoundException } = await import('@nestjs/common');
             throw new NotFoundException('InboundShipment not found');
         }
         const { entryNode, shipmentItemCount, ...entity } = result;

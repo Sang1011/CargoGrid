@@ -5,6 +5,7 @@ import {
     Get,
     HttpCode,
     HttpStatus,
+    NotFoundException,
     Param,
     ParseUUIDPipe,
     Patch,
@@ -54,7 +55,6 @@ export class StorageSlotController {
         const repo = (this.service as any).slotRepo;
         const result = await repo.findByIdWithRelations(id);
         if (!result) {
-            const { NotFoundException } = await import('@nestjs/common');
             throw new NotFoundException('StorageSlot not found');
         }
         const { zone, warehouse, allowedVehicles, ...entity } = result;

@@ -5,6 +5,7 @@ import {
     Get,
     HttpCode,
     HttpStatus,
+    NotFoundException,
     Param,
     ParseUUIDPipe,
     Patch,
@@ -48,7 +49,6 @@ export class WarehouseIncidentController {
         const repo = (this.service as any).incidentRepo;
         const result = await repo.findByIdWithWarehouse(id);
         if (!result) {
-            const { NotFoundException } = await import('@nestjs/common');
             throw new NotFoundException('WarehouseIncident not found');
         }
         const { warehouse, ...entity } = result;

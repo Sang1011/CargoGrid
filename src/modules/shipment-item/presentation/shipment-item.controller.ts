@@ -5,6 +5,7 @@ import {
     Get,
     HttpCode,
     HttpStatus,
+    NotFoundException,
     Param,
     ParseUUIDPipe,
     Patch,
@@ -44,7 +45,6 @@ export class ShipmentItemController {
         const repo = (this.service as any).itemRepo;
         const result = await repo.findByIdWithRelations(id);
         if (!result) {
-            const { NotFoundException } = await import('@nestjs/common');
             throw new NotFoundException('ShipmentItem not found');
         }
         const { cargoItem, assignedWarehouse, assignedSlot, ...entity } = result;

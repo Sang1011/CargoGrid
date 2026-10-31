@@ -5,6 +5,7 @@ import {
     Get,
     HttpCode,
     HttpStatus,
+    NotFoundException,
     Param,
     ParseUUIDPipe,
     Patch,
@@ -49,7 +50,6 @@ export class ZoneController {
         const repo = (this.service as any).zoneRepo;
         const result = await repo.findByIdWithWarehouse(id);
         if (!result) {
-            const { NotFoundException } = await import('@nestjs/common');
             throw new NotFoundException('Zone not found');
         }
         const { warehouse, ...entity } = result;

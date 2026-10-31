@@ -5,6 +5,7 @@ import {
     Get,
     HttpCode,
     HttpStatus,
+    NotFoundException,
     Param,
     ParseUUIDPipe,
     Patch,
@@ -51,7 +52,6 @@ export class VehicleController {
         const repo = (this.service as any).vehicleRepo;
         const result = await repo.findByIdWithHomeWarehouse(id);
         if (!result) {
-            const { NotFoundException } = await import('@nestjs/common');
             throw new NotFoundException('Vehicle not found');
         }
         const { homeWarehouse, ...entity } = result;

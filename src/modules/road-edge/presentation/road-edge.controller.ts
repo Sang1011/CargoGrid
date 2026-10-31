@@ -5,6 +5,7 @@ import {
     Get,
     HttpCode,
     HttpStatus,
+    NotFoundException,
     Param,
     ParseUUIDPipe,
     Patch,
@@ -50,7 +51,6 @@ export class RoadEdgeController {
         const repo = (this.service as any).edgeRepo;
         const result = await repo.findByIdWithRelations(id);
         if (!result) {
-            const { NotFoundException } = await import('@nestjs/common');
             throw new NotFoundException('RoadEdge not found');
         }
         const { fromNode, toNode, allowedVehicles, ...entity } = result;

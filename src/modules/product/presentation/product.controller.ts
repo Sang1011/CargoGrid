@@ -5,6 +5,7 @@ import {
     Get,
     HttpCode,
     HttpStatus,
+    NotFoundException,
     Param,
     ParseUUIDPipe,
     Patch,
@@ -48,7 +49,6 @@ export class ProductController {
         const repo = (this.service as any).productRepo;
         const entity = await repo.findByIdWithRelations(id);
         if (!entity) {
-            const { NotFoundException } = await import('@nestjs/common');
             throw new NotFoundException('Product not found');
         }
         return ProductResponse.fromEntity(entity);

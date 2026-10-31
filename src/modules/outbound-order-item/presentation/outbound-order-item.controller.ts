@@ -5,6 +5,7 @@ import {
     Get,
     HttpCode,
     HttpStatus,
+    NotFoundException,
     Param,
     ParseUUIDPipe,
     Patch,
@@ -43,7 +44,6 @@ export class OutboundOrderItemController {
         const repo = (this.service as any).itemRepo;
         const result = await repo.findByIdWithRelations(id);
         if (!result) {
-            const { NotFoundException } = await import('@nestjs/common');
             throw new NotFoundException('OutboundOrderItem not found');
         }
         const { cargoItem, fromSlot, fromWarehouse, ...entity } = result;

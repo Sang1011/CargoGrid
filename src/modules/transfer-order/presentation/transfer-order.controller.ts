@@ -5,6 +5,7 @@ import {
     Get,
     HttpCode,
     HttpStatus,
+    NotFoundException,
     Param,
     ParseUUIDPipe,
     Patch,
@@ -51,7 +52,6 @@ export class TransferOrderController {
         const repo = (this.service as any).orderRepo;
         const result = await repo.findByIdWithRelations(id);
         if (!result) {
-            const { NotFoundException } = await import('@nestjs/common');
             throw new NotFoundException('TransferOrder not found');
         }
         const { fromWarehouse, incident, itemCount, ...entity } = result;
