@@ -11,6 +11,8 @@ import {
     Patch,
     Post,
     Query,
+    UsePipes,
+    ValidationPipe,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CargoItemService } from '../application/cargo-item.service';
@@ -21,6 +23,9 @@ import { CargoItemQueryDto } from '../application/dto/cargo-item-query.dto';
 import { PageMeta } from 'src/common/pagination/paginate';
 import { RequirePermission } from 'src/common/security/decorators';
 
+// Unknown fields are rejected, not silently dropped: a client sending currentSlotId or status gets a 400
+// that says why, instead of a 200 that did nothing (BR-01).
+@UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
 @ApiTags('CargoItems')
 @Controller('cargo-items')
 export class CargoItemController {

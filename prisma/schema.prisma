@@ -187,6 +187,37 @@ enum OptimizationContextType {
 
 // ─── Models ────────────────────────────────────────────────────────────────
 
+enum MovementType {
+  warehouse_transfer
+  port_entry
+  port_exit
+  internal_transfer
+}
+
+enum MovementStatus {
+  created
+  reserved
+  in_transit
+  completed
+  cancelled
+}
+
+enum ReservationStatus {
+  active
+  consumed
+  released
+  expired
+}
+
+enum CargoEventType {
+  movement_created
+  slot_reserved
+  movement_started
+  movement_completed
+  movement_cancelled
+  reservation_expired
+}
+
 model Scenario {
   id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String         @db.VarChar(100)
@@ -206,6 +237,8 @@ model Scenario {
   outboundOrders   OutboundOrder[]
   cargoItems       CargoItem[]
   vehicles         Vehicle[]
+
+  movements Movement[]
 
   @@map("scenarios")
 }
@@ -256,6 +289,8 @@ model Warehouse {
   outboundItemsFrom     OutboundOrderItem[]       @relation("fromWarehouse")
   cargoEventsFrom       CargoItemEvent[]          @relation("fromWarehouse")
   cargoEventsTo         CargoItemEvent[]          @relation("toWarehouse")
+  movementsFrom         Movement[]                @relation("movementFromWarehouse")
+  movementsTo           Movement[]                @relation("movementToWarehouse")
 
   @@unique([scenarioId, code])
   @@map("warehouses")
@@ -345,6 +380,8 @@ model StorageSlot {
   displayLabel    String?  @map("display_label") @db.VarChar(20)
   isBlocked       Boolean  @default(false) @map("is_blocked")
   isActive        Boolean  @default(true) @map("is_active")
+  // Optimistic-lock counter; bumped on every change to the slot's load.
+  version         Int      @default(0)
 
   zone      Zone      @relation(fields: [zoneId], references: [id], onUpdate: Cascade, onDelete: Restrict)
   warehouse Warehouse @relation(fields: [warehouseId], references: [id], onUpdate: Cascade, onDelete: Restrict)
@@ -360,6 +397,9 @@ model StorageSlot {
   outboundItemsFrom     OutboundOrderItem[]  @relation("fromSlot")
   cargoEventsFrom       CargoItemEvent[]     @relation("fromSlot")
   cargoEventsTo         CargoItemEvent[]     @relation("toSlot")
+  movementsFrom         Movement[]           @relation("movementFromSlot")
+  movementsTo           Movement[]           @relation("movementToSlot")
+  reservations          SlotReservation[]
 
   @@unique([zoneId, rowIndex, colIndex])
   @@index([warehouseId])
@@ -564,6 +604,8 @@ model CargoItem {
   currentWarehouseId String?         @map("current_warehouse_id") @db.Uuid
   currentTempC       Decimal?        @map("current_temp_c") @db.Decimal(5, 2)
   lastTempCheckAt    DateTime?       @map("last_temp_check_at") @db.Timestamptz
+  // Optimistic-lock counter; bumped on every movement step that touches the cargo.
+  version            Int             @default(0)
   manufactureDate    DateTime?       @map("manufacture_date") @db.Date
   expiryDate         DateTime?       @map("expiry_date") @db.Date
   notes              String?
@@ -575,6 +617,7 @@ model CargoItem {
   currentSlot      StorageSlot?        @relation("currentSlot", fields: [currentSlotId], references: [id], onUpdate: Cascade, onDelete: SetNull)
   currentWarehouse Warehouse?          @relation("currentWarehouse", fields: [currentWarehouseId], references: [id], onUpdate: Cascade, onDelete: SetNull)
   events           CargoItemEvent[]
+  movements        Movement[]
   shipmentItems    ShipmentItem[]
   transferItems    TransferOrderItem[]
   outboundItems    OutboundOrderItem[]
@@ -588,32 +631,124 @@ model CargoItem {
   @@map("cargo_items")
 }
 
+// Append-only ledger of everything that happens to a cargo item. Rows are never updated or deleted
+// (enforced by a trigger, see prisma/sql/phase2-constraints.sql); `seq` gives a strict total order.
 model CargoItemEvent {
-  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  cargoItemId     String       @map("cargo_item_id") @db.Uuid
-  eventType       String       @map("event_type") @db.VarChar(50)
-  fromSlotId      String?      @map("from_slot_id") @db.Uuid
-  toSlotId        String?      @map("to_slot_id") @db.Uuid
-  fromWarehouseId String?      @map("from_warehouse_id") @db.Uuid
-  toWarehouseId   String?      @map("to_warehouse_id") @db.Uuid
-  vehicleId       String?      @map("vehicle_id") @db.Uuid
-  temperatureC    Decimal?     @map("temperature_c") @db.Decimal(5, 2)
-  vehicleType     VehicleType? @map("vehicle_type")
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seq             BigInt         @unique @default(autoincrement())
+  cargoItemId     String         @map("cargo_item_id") @db.Uuid
+  movementId      String?        @map("movement_id") @db.Uuid
+  eventType       CargoEventType @map("event_type")
+  fromSlotId      String?        @map("from_slot_id") @db.Uuid
+  toSlotId        String?        @map("to_slot_id") @db.Uuid
+  fromWarehouseId String?        @map("from_warehouse_id") @db.Uuid
+  toWarehouseId   String?        @map("to_warehouse_id") @db.Uuid
+  vehicleId       String?        @map("vehicle_id") @db.Uuid
+  actorId         String?        @map("actor_id") @db.Uuid
+  temperatureC    Decimal?       @map("temperature_c") @db.Decimal(5, 2)
+  vehicleType     VehicleType?   @map("vehicle_type")
+  reason          String?
+  correlationId   String?        @map("correlation_id") @db.VarChar(64)
   notes           String?
-  occurredAt      DateTime     @default(now()) @map("occurred_at") @db.Timestamptz
+  occurredAt      DateTime       @default(now()) @map("occurred_at") @db.Timestamptz
 
-  cargoItem     CargoItem    @relation(fields: [cargoItemId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  cargoItem     CargoItem    @relation(fields: [cargoItemId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  movement      Movement?    @relation(fields: [movementId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  actor         User?        @relation(fields: [actorId], references: [id], onUpdate: Cascade, onDelete: SetNull)
   fromSlot      StorageSlot? @relation("fromSlot", fields: [fromSlotId], references: [id], onUpdate: Cascade, onDelete: SetNull)
   toSlot        StorageSlot? @relation("toSlot", fields: [toSlotId], references: [id], onUpdate: Cascade, onDelete: SetNull)
   fromWarehouse Warehouse?   @relation("fromWarehouse", fields: [fromWarehouseId], references: [id], onUpdate: Cascade, onDelete: SetNull)
   toWarehouse   Warehouse?   @relation("toWarehouse", fields: [toWarehouseId], references: [id], onUpdate: Cascade, onDelete: SetNull)
   vehicle       Vehicle?     @relation(fields: [vehicleId], references: [id], onUpdate: Cascade, onDelete: SetNull)
 
-  @@index([cargoItemId])
+  @@index([cargoItemId, seq])
+  @@index([movementId])
   @@index([occurredAt])
   @@index([eventType])
   @@index([vehicleId])
   @@map("cargo_item_events")
+}
+
+model Movement {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scenarioId      String         @map("scenario_id") @db.Uuid
+  cargoItemId     String         @map("cargo_item_id") @db.Uuid
+  type            MovementType
+  status          MovementStatus @default(created)
+  fromWarehouseId String?        @map("from_warehouse_id") @db.Uuid
+  fromSlotId      String?        @map("from_slot_id") @db.Uuid
+  toWarehouseId   String?        @map("to_warehouse_id") @db.Uuid
+  toSlotId        String?        @map("to_slot_id") @db.Uuid
+  vehicleId       String?        @map("vehicle_id") @db.Uuid
+  // Snapshot of the cargo's size when the movement was requested; used for reservation and load bookkeeping.
+  weightKg        Decimal        @map("weight_kg") @db.Decimal(10, 3)
+  volumeM3        Decimal        @map("volume_m3") @db.Decimal(10, 4)
+  reason          String?
+  cancelReason    String?        @map("cancel_reason")
+  requestedById   String?        @map("requested_by_id") @db.Uuid
+  correlationId   String?        @map("correlation_id") @db.VarChar(64)
+  // Optimistic-lock counter; every state change must match the version it read.
+  version         Int            @default(1)
+  startedAt       DateTime?      @map("started_at") @db.Timestamptz
+  completedAt     DateTime?      @map("completed_at") @db.Timestamptz
+  cancelledAt     DateTime?      @map("cancelled_at") @db.Timestamptz
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  scenario      Scenario         @relation(fields: [scenarioId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  cargoItem     CargoItem        @relation(fields: [cargoItemId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  fromWarehouse Warehouse?       @relation("movementFromWarehouse", fields: [fromWarehouseId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  fromSlot      StorageSlot?     @relation("movementFromSlot", fields: [fromSlotId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  toWarehouse   Warehouse?       @relation("movementToWarehouse", fields: [toWarehouseId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  toSlot        StorageSlot?     @relation("movementToSlot", fields: [toSlotId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  vehicle       Vehicle?         @relation(fields: [vehicleId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  requestedBy   User?            @relation(fields: [requestedById], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  reservation   SlotReservation?
+  events        CargoItemEvent[]
+
+  @@index([cargoItemId])
+  @@index([scenarioId, status])
+  @@index([status, createdAt])
+  @@index([toSlotId])
+  @@map("movements")
+}
+
+// Capacity held on a destination slot between "reserved" and "completed".
+// `expiresAt` is cleared when the movement starts: a cargo already on the road keeps its place.
+model SlotReservation {
+  id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slotId     String            @map("slot_id") @db.Uuid
+  movementId String            @unique @map("movement_id") @db.Uuid
+  weightKg   Decimal           @map("weight_kg") @db.Decimal(10, 3)
+  volumeM3   Decimal           @map("volume_m3") @db.Decimal(10, 4)
+  status     ReservationStatus @default(active)
+  expiresAt  DateTime?         @map("expires_at") @db.Timestamptz
+  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  closedAt   DateTime?         @map("closed_at") @db.Timestamptz
+
+  slot     StorageSlot @relation(fields: [slotId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  movement Movement    @relation(fields: [movementId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+
+  @@index([slotId, status])
+  @@index([status, expiresAt])
+  @@map("slot_reservations")
+}
+
+// Written in the same transaction as the business change; a relay worker (Phase 5) publishes it.
+model OutboxEvent {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  aggregateType String    @map("aggregate_type") @db.VarChar(50)
+  aggregateId   String    @map("aggregate_id") @db.VarChar(100)
+  eventType     String    @map("event_type") @db.VarChar(80)
+  payload       Json
+  correlationId String?   @map("correlation_id") @db.VarChar(64)
+  attempts      Int       @default(0)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz
+
+  @@index([publishedAt, createdAt])
+  @@index([aggregateType, aggregateId])
+  @@map("outbox_events")
 }
 
 model InboundShipment {
@@ -841,6 +976,8 @@ model Vehicle {
   transferItems TransferOrderItem[]
   outboundItems OutboundOrderItem[]
 
+  movements Movement[]
+
   @@unique([scenarioId, code])
   @@index([scenarioId])
   @@index([vehicleType])
@@ -866,6 +1003,8 @@ model User {
   roles         UserRole[]
   refreshTokens RefreshToken[]
   auditLogs     AuditLog[]
+  movements     Movement[]
+  ledgerEvents  CargoItemEvent[]
 
   @@map("users")
 }

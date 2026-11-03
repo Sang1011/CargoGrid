@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { BaseService } from 'src/common/base/base.service';
 import { CargoItemEntity } from '../domain/cargo-item.entity';
 import { CargoItemRepository } from '../infrastructure/cargo-item.repository';
@@ -38,9 +38,7 @@ export class CargoItemService extends BaseService<CargoItemEntity, CreateCargoIt
             actualWidthM: dto.actualWidthM ?? null,
             actualDepthM: dto.actualDepthM ?? null,
             actualHeightM: dto.actualHeightM ?? null,
-            status: dto.status ?? CargoItemStatus.IN_TRANSIT_INBOUND,
-            currentSlotId: dto.currentSlotId ?? null,
-            currentWarehouseId: dto.currentWarehouseId ?? null,
+            status: CargoItemStatus.IN_TRANSIT_INBOUND,
             currentTempC: dto.currentTempC ?? null,
             manufactureDate: dto.manufactureDate ? new Date(dto.manufactureDate) : null,
             expiryDate: dto.expiryDate ? new Date(dto.expiryDate) : null,
@@ -60,13 +58,22 @@ export class CargoItemService extends BaseService<CargoItemEntity, CreateCargoIt
         if (dto.actualWidthM !== undefined) data.actualWidthM = dto.actualWidthM;
         if (dto.actualDepthM !== undefined) data.actualDepthM = dto.actualDepthM;
         if (dto.actualHeightM !== undefined) data.actualHeightM = dto.actualHeightM;
-        if (dto.status !== undefined) data.status = dto.status;
-        if (dto.currentSlotId !== undefined) data.currentSlotId = dto.currentSlotId;
-        if (dto.currentWarehouseId !== undefined) data.currentWarehouseId = dto.currentWarehouseId;
         if (dto.currentTempC !== undefined) data.currentTempC = dto.currentTempC;
         if (dto.manufactureDate !== undefined) data.manufactureDate = dto.manufactureDate ? new Date(dto.manufactureDate) : null;
         if (dto.expiryDate !== undefined) data.expiryDate = dto.expiryDate ? new Date(dto.expiryDate) : null;
         if (dto.notes !== undefined) data.notes = dto.notes;
         return this.repo.update(id, data);
+    }
+
+    // A cargo item with ledger history can never be deleted: the ledger is permanent.
+    async remove(id: string): Promise<void> {
+        try {
+            await super.remove(id);
+        } catch (err) {
+            if ((err as { code?: string })?.code === 'P2003') {
+                throw new ConflictException('This cargo item has movement history and cannot be deleted');
+            }
+            throw err;
+        }
     }
 }

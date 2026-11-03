@@ -17,6 +17,17 @@ import { seedIdentity } from './seeds/identity';
 
 const prisma = new PrismaClient();
 
+async function reconcileLoads(prisma: PrismaClient) {
+  await prisma.$executeRaw`
+    UPDATE storage_slots s SET
+      current_weight_kg = COALESCE((SELECT SUM(COALESCE(c.actual_weight_kg, p.weight_kg)) FROM cargo_items c JOIN products p ON p.id = c.product_id WHERE c.current_slot_id = s.id), 0),
+      current_volume_m3 = COALESCE((SELECT SUM(COALESCE(c.actual_volume_m3, p.volume_m3)) FROM cargo_items c JOIN products p ON p.id = c.product_id WHERE c.current_slot_id = s.id), 0)`;
+  await prisma.$executeRaw`
+    UPDATE warehouses w SET
+      current_weight_kg = COALESCE((SELECT SUM(current_weight_kg) FROM storage_slots WHERE warehouse_id = w.id), 0),
+      current_volume_m3 = COALESCE((SELECT SUM(current_volume_m3) FROM storage_slots WHERE warehouse_id = w.id), 0)`;
+}
+
 async function main() {
   console.log('Cleaning existing data...');
   await cleanDatabase(prisma);
@@ -61,6 +72,10 @@ async function main() {
   const outboundOrders = await seedOutboundOrders(prisma, scenarios, warehouses, cargoItems, storageSlots, locationNodes);
 
   console.log('Seeding roles, permissions and demo users...');
+  // Slot and warehouse load are derived from stored cargo; recompute so seeded data satisfies the
+  // capacity CHECK constraints and cargo can be moved without negative or over-capacity loads.
+  await reconcileLoads(prisma);
+
   await seedIdentity(prisma);
 
   console.log('Seed completed:', {

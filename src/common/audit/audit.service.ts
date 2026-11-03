@@ -60,24 +60,34 @@ export class AuditService {
     /** Best effort: a failed audit write is logged loudly but never turns a committed request into an error. */
     async record(entry: AuditEntry): Promise<void> {
         try {
-            await this.prisma.auditLog.create({
-                data: {
-                    actorId: entry.actorId ?? null,
-                    actorEmail: entry.actorEmail ?? null,
-                    action: entry.action,
-                    entityType: entry.entityType,
-                    entityId: entry.entityId ?? null,
-                    oldValue: redact(entry.oldValue) ?? undefined,
-                    newValue: redact(entry.newValue) ?? undefined,
-                    reason: entry.reason ?? null,
-                    correlationId: entry.correlationId ?? null,
-                    ipAddress: entry.ipAddress ?? null,
-                    statusCode: entry.statusCode ?? null,
-                },
-            });
+            await this.prisma.auditLog.create({ data: this.toData(entry) });
         } catch (err) {
             this.logger.error(`Audit write failed for ${entry.action}: ${(err as Error).message}`);
         }
+    }
+
+    /**
+     * Writes the audit row through the caller's transaction client. Unlike `record`, a failure
+     * propagates, so the business change and its audit trail commit or roll back together.
+     */
+    async recordInTransaction(tx: { auditLog: { create: (args: any) => Promise<unknown> } }, entry: AuditEntry): Promise<void> {
+        await tx.auditLog.create({ data: this.toData(entry) });
+    }
+
+    private toData(entry: AuditEntry) {
+        return {
+            actorId: entry.actorId ?? null,
+            actorEmail: entry.actorEmail ?? null,
+            action: entry.action,
+            entityType: entry.entityType,
+            entityId: entry.entityId ?? null,
+            oldValue: redact(entry.oldValue) ?? undefined,
+            newValue: redact(entry.newValue) ?? undefined,
+            reason: entry.reason ?? null,
+            correlationId: entry.correlationId ?? null,
+            ipAddress: entry.ipAddress ?? null,
+            statusCode: entry.statusCode ?? null,
+        };
     }
 
     async list(filter: AuditFilter): Promise<Page<any>> {

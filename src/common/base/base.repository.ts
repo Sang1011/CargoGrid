@@ -27,6 +27,7 @@ export abstract class BaseRepository<TEntity> {
         orderBy?: Record<string, any> | Record<string, any>[];
         page?: number;
         limit?: number;
+        include?: Record<string, any>;
     }): Promise<Page<TEntity>> {
         const result = await paginate<any>(this.delegate, {
             ...options,

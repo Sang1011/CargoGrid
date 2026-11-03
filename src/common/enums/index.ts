@@ -172,3 +172,34 @@ export enum AssignmentStatus {
     RETRIEVED = 'retrieved',
     CANCELLED = 'cancelled',
 }
+
+export enum MovementType {
+    WAREHOUSE_TRANSFER = 'warehouse_transfer',
+    PORT_ENTRY = 'port_entry',
+    PORT_EXIT = 'port_exit',
+    INTERNAL_TRANSFER = 'internal_transfer',
+}
+
+export enum MovementStatus {
+    CREATED = 'created',
+    RESERVED = 'reserved',
+    IN_TRANSIT = 'in_transit',
+    COMPLETED = 'completed',
+    CANCELLED = 'cancelled',
+}
+
+export enum ReservationStatus {
+    ACTIVE = 'active',
+    CONSUMED = 'consumed',
+    RELEASED = 'released',
+    EXPIRED = 'expired',
+}
+
+export enum CargoEventType {
+    MOVEMENT_CREATED = 'movement_created',
+    SLOT_RESERVED = 'slot_reserved',
+    MOVEMENT_STARTED = 'movement_started',
+    MOVEMENT_COMPLETED = 'movement_completed',
+    MOVEMENT_CANCELLED = 'movement_cancelled',
+    RESERVATION_EXPIRED = 'reservation_expired',
+}

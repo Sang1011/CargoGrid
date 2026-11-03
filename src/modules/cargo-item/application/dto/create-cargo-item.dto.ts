@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
     IsDateString,
-    IsEnum,
     IsNotEmpty,
     IsNumber,
     IsOptional,
@@ -9,8 +8,9 @@ import {
     MaxLength,
     Min,
 } from 'class-validator';
-import { CargoItemStatus } from 'src/common/enums';
 
+// Where a cargo is, and whether it is in transit, stored or delivered, is not editable here:
+// only a Movement changes it (BR-01). A new cargo item starts as in_transit_inbound with no location.
 export class CreateCargoItemDto {
     @ApiProperty()
     @IsString()
@@ -69,21 +69,6 @@ export class CreateCargoItemDto {
     @IsOptional()
     @Min(0)
     actualHeightM?: number;
-
-    @ApiPropertyOptional({ enum: CargoItemStatus, default: CargoItemStatus.IN_TRANSIT_INBOUND })
-    @IsEnum(CargoItemStatus)
-    @IsOptional()
-    status?: CargoItemStatus;
-
-    @ApiPropertyOptional()
-    @IsString()
-    @IsOptional()
-    currentSlotId?: string;
-
-    @ApiPropertyOptional()
-    @IsString()
-    @IsOptional()
-    currentWarehouseId?: string;
 
     @ApiPropertyOptional()
     @IsNumber({ maxDecimalPlaces: 2 })

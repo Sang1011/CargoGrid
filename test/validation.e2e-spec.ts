@@ -755,14 +755,7 @@ describe('Validation (e2e)', () => {
         .expect(400);
     });
 
-    it('POST — invalid status enum → 400', () => {
-      return http
-        .post(basePath)
-        .send({
-          productId: uuid, scenarioId: uuid, status: 'evaporated',
-        })
-        .expect(400);
-    });
+    // Cargo status is no longer client input (BR-01): it is set by the movement lifecycle.
 
     it('POST — barcode exceeds @MaxLength(100) → 400', () => {
       return http

@@ -4,6 +4,7 @@ export const RESOURCES = [
     'cargo-items',
     'inbound-shipments',
     'location-nodes',
+    'movements',
     'outbound-order-items',
     'outbound-orders',
     'products',
@@ -29,6 +30,8 @@ export const SPECIAL_PERMISSIONS = [
     'allocation.run',
     // Kept separate from `allocation.run`: whoever proposes a plan is not automatically allowed to apply it.
     'allocation.confirm',
+    // Start and complete a movement: the people physically moving cargo, as opposed to those who plan it.
+    'movements.execute',
     'audit.read',
     'users.manage',
 ] as const;
@@ -58,20 +61,23 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
         'allocation.read',
         'allocation.run',
         'allocation.confirm',
+        'movements.execute',
         'audit.read',
     ],
     warehouse_operator: [
         ...readAll,
         ...writeOn('cargo-items', 'inbound-shipments', 'shipment-items', 'transfer-orders', 'transfer-order-items'),
+        'movements.execute',
         'allocation.read',
     ],
     gate_operator: [
         ...readAll,
         ...writeOn('outbound-orders', 'outbound-order-items', 'inbound-shipments'),
+        'movements.execute',
     ],
     dispatcher: [
         ...readAll,
-        ...writeOn('transfer-orders', 'transfer-order-items', 'outbound-orders', 'outbound-order-items', 'vehicles'),
+        ...writeOn('transfer-orders', 'transfer-order-items', 'outbound-orders', 'outbound-order-items', 'vehicles', 'movements'),
         'allocation.read',
         'allocation.run',
     ],
