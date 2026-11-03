@@ -5,10 +5,11 @@ import { LocationNodeRepository } from '../infrastructure/location-node.reposito
 import { CreateLocationNodeDto } from './dto/create-location-node.dto';
 import { UpdateLocationNodeDto } from './dto/update-location-node.dto';
 import { LocationNodeType } from 'src/common/enums';
+import { RouteService } from 'src/modules/route/application/route.service';
 
 @Injectable()
 export class LocationNodeService extends BaseService<LocationNodeEntity, CreateLocationNodeDto, UpdateLocationNodeDto> {
-    constructor(private readonly nodeRepo: LocationNodeRepository) {
+    constructor(private readonly nodeRepo: LocationNodeRepository, private readonly routes: RouteService) {
         super(nodeRepo);
     }
 
@@ -20,8 +21,8 @@ export class LocationNodeService extends BaseService<LocationNodeEntity, CreateL
         return this.nodeRepo.findAllWithFilters(filters);
     }
 
-    create(dto: CreateLocationNodeDto): Promise<LocationNodeEntity> {
-        return this.repo.create({
+    async create(dto: CreateLocationNodeDto): Promise<LocationNodeEntity> {
+        const created = await this.repo.create({
             scenarioId: dto.scenarioId,
             name: dto.name,
             code: dto.code,
@@ -35,10 +36,12 @@ export class LocationNodeService extends BaseService<LocationNodeEntity, CreateL
             isActive: dto.isActive ?? true,
             metadata: dto.metadata ?? null,
         });
+        this.routes.invalidate(created.scenarioId);
+        return created;
     }
 
     async update(id: string, dto: UpdateLocationNodeDto): Promise<LocationNodeEntity> {
-        await this.findOne(id);
+        const before = await this.findOne(id);
         const data: any = {};
         if (dto.scenarioId !== undefined) data.scenarioId = dto.scenarioId;
         if (dto.name !== undefined) data.name = dto.name;
@@ -52,6 +55,15 @@ export class LocationNodeService extends BaseService<LocationNodeEntity, CreateL
         if (dto.slotId !== undefined) data.slotId = dto.slotId;
         if (dto.isActive !== undefined) data.isActive = dto.isActive;
         if (dto.metadata !== undefined) data.metadata = dto.metadata;
-        return this.repo.update(id, data);
+        const updated = await this.repo.update(id, data);
+        this.routes.invalidate(before.scenarioId);
+        this.routes.invalidate(updated.scenarioId);
+        return updated;
+    }
+
+    async remove(id: string): Promise<void> {
+        const before = await this.findOne(id);
+        await super.remove(id);
+        this.routes.invalidate(before.scenarioId);
     }
 }

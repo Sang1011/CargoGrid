@@ -10,6 +10,8 @@ import {
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { OptimizationService } from '../application/optimization.service';
 import { RunOptimizationDto } from '../application/dto/run-optimization.dto';
+import { BenchmarkDto } from '../application/dto/benchmark.dto';
+import { BenchmarkRow } from 'src/modules/benchmark/benchmark-runner';
 import { CompareOptimizationDto } from '../application/dto/compare-optimization.dto';
 import { OptimizationRunResponse } from '../application/dto/optimization-run.response';
 import { AssignmentResponse } from '../application/dto/assignment.response';
@@ -37,6 +39,13 @@ export class OptimizationController {
     async compare(@Body() dto: CompareOptimizationDto): Promise<OptimizationRunResponse[]> {
         const entities = await this.service.compare(dto);
         return entities.map(OptimizationRunResponse.fromEntity);
+    }
+
+    @RequirePermission('allocation.run')
+    @Post('benchmark')
+    @ApiOperation({ summary: 'Compare Random / Greedy / Greedy+LS / SA on the five built-in benchmark datasets (nothing is stored)' })
+    benchmark(@Body() dto: BenchmarkDto): Promise<BenchmarkRow[]> {
+        return this.service.benchmark(dto);
     }
 
     @RequirePermission('allocation.read')

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
+import { IsInt, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
 import { AlgorithmType, OptimizationContextType } from 'src/common/enums';
 import { Type } from 'class-transformer';
 
@@ -55,4 +55,9 @@ export class RunOptimizationDto {
     @ValidateNested()
     @Type(() => PartialWeights)
     weights?: PartialWeights;
+
+    @ApiPropertyOptional({ description: 'Seed for Random / Local Search / Annealing so a run can be repeated exactly' })
+    @IsInt()
+    @IsOptional()
+    seed?: number;
 }

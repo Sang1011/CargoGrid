@@ -187,6 +187,13 @@ enum OptimizationContextType {
 
 // ─── Models ────────────────────────────────────────────────────────────────
 
+enum AllocationProposalStatus {
+  proposed
+  edited
+  confirmed
+  rejected
+}
+
 enum MovementType {
   warehouse_transfer
   port_entry
@@ -241,6 +248,7 @@ model Scenario {
   movements Movement[]
 
   @@map("scenarios")
+  allocationProposals AllocationProposal[]
 }
 
 model Warehouse {
@@ -294,6 +302,7 @@ model Warehouse {
 
   @@unique([scenarioId, code])
   @@map("warehouses")
+  allocationItems AllocationProposalItem[]
 }
 
 model WarehouseAllowedVehicle {
@@ -407,6 +416,7 @@ model StorageSlot {
   @@index([zoneType])
   @@index([isBlocked])
   @@map("storage_slots")
+  allocationItems AllocationProposalItem[]
 }
 
 model SlotAllowedVehicle {
@@ -553,6 +563,7 @@ model OptimizationRun {
   @@index([algorithm])
   @@index([createdAt])
   @@map("optimization_runs")
+  allocationProposals AllocationProposal[]
 }
 
 model Assignment {
@@ -629,6 +640,7 @@ model CargoItem {
   @@index([currentWarehouseId])
   @@index([barcode])
   @@map("cargo_items")
+  allocationItems AllocationProposalItem[]
 }
 
 // Append-only ledger of everything that happens to a cargo item. Rows are never updated or deleted
@@ -711,6 +723,7 @@ model Movement {
   @@index([status, createdAt])
   @@index([toSlotId])
   @@map("movements")
+  allocationItem AllocationProposalItem?
 }
 
 // Capacity held on a destination slot between "reserved" and "completed".
@@ -1007,6 +1020,8 @@ model User {
   ledgerEvents  CargoItemEvent[]
 
   @@map("users")
+  proposalsRequested AllocationProposal[] @relation("proposalRequestedBy")
+  proposalsConfirmed AllocationProposal[] @relation("proposalConfirmedBy")
 }
 
 model Role {
@@ -1110,4 +1125,66 @@ model IdempotencyKey {
   @@unique([userId, key])
   @@index([expiresAt])
   @@map("idempotency_keys")
+}
+
+// A plan for placing a whole lot (inbound shipment or transfer order). Nothing moves until it is
+// confirmed; confirming turns every item into a Movement in one transaction (BR-12).
+model AllocationProposal {
+  id                 String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scenarioId         String                   @map("scenario_id") @db.Uuid
+  contextType        OptimizationContextType  @map("context_type")
+  contextId          String                   @map("context_id") @db.Uuid
+  algorithm          AlgorithmType
+  status             AllocationProposalStatus @default(proposed)
+  optimizationRunId  String?                  @map("optimization_run_id") @db.Uuid
+  requestedById      String?                  @map("requested_by_id") @db.Uuid
+  confirmedById      String?                  @map("confirmed_by_id") @db.Uuid
+  modifiedByUser     Boolean                  @default(false) @map("modified_by_user")
+  constraintsApplied Json?                    @map("constraints_applied")
+  notes              String[]
+  rejectReason       String?                  @map("reject_reason")
+  version            Int                      @default(1)
+  createdAt          DateTime                 @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  confirmedAt        DateTime?                @map("confirmed_at") @db.Timestamptz
+  rejectedAt         DateTime?                @map("rejected_at") @db.Timestamptz
+
+  scenario        Scenario                 @relation(fields: [scenarioId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  optimizationRun OptimizationRun?         @relation(fields: [optimizationRunId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  requestedBy     User?                    @relation("proposalRequestedBy", fields: [requestedById], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  confirmedBy     User?                    @relation("proposalConfirmedBy", fields: [confirmedById], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  items           AllocationProposalItem[]
+
+  @@index([scenarioId, status])
+  @@index([contextType, contextId])
+  @@map("allocation_proposals")
+}
+
+model AllocationProposalItem {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  proposalId         String   @map("proposal_id") @db.Uuid
+  cargoItemId        String   @map("cargo_item_id") @db.Uuid
+  slotId             String?  @map("slot_id") @db.Uuid
+  warehouseId        String?  @map("warehouse_id") @db.Uuid
+  /// Passes every hard constraint (and has a route). A cargo with no valid slot is not feasible.
+  feasible           Boolean
+  /// The algorithm's own pick; false once a person has changed it.
+  recommended        Boolean
+  editedByUser       Boolean  @default(false) @map("edited_by_user")
+  score              Decimal? @db.Decimal(5, 2)
+  reasons            String[]
+  rejectedCandidates Json?    @map("rejected_candidates")
+  routeCost          Decimal? @map("route_cost") @db.Decimal(10, 2)
+  routePath          Json?    @map("route_path")
+  movementId         String?  @unique @map("movement_id") @db.Uuid
+
+  proposal  AllocationProposal @relation(fields: [proposalId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  cargoItem CargoItem          @relation(fields: [cargoItemId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  slot      StorageSlot?       @relation(fields: [slotId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  warehouse Warehouse?         @relation(fields: [warehouseId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  movement  Movement?          @relation(fields: [movementId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+
+  @@unique([proposalId, cargoItemId])
+  @@index([cargoItemId])
+  @@map("allocation_proposal_items")
 }

@@ -1,5 +1,6 @@
 import {
     ConflictException,
+    HttpException,
     Injectable,
     Logger,
     NotFoundException,
@@ -102,6 +103,47 @@ export class MovementService {
             throw err;
         }
         return this.findOne(id);
+    }
+
+    /**
+     * Creates several movements as one unit: either every one is created and reserved, or none is.
+     * `after` runs in the same transaction (the allocation uses it to mark its proposal confirmed).
+     * Destination slots are locked up front in id order, so two overlapping batches cannot deadlock.
+     */
+    async createBatch(
+        dtos: CreateMovementDto[],
+        ctx: ActorContext = {},
+        after?: (tx: Tx, movementIds: string[]) => Promise<void>,
+    ): Promise<string[]> {
+        try {
+            return await this.prisma.$transaction(
+                async tx => {
+                    await this.lockSlots(tx, dtos.map(d => d.toSlotId));
+                    const ids: string[] = [];
+                    for (const dto of dtos) {
+                        try {
+                            ids.push(await this.createInTx(tx, dto, ctx));
+                        } catch (err) {
+                            // Say which cargo item stopped the batch; keep the original status code.
+                            if (err instanceof HttpException) {
+                                const message = `Cargo ${dto.cargoItemId}: ${err.message}`;
+                                if (err instanceof ConflictException) throw new ConflictException(message);
+                                if (err instanceof NotFoundException) throw new NotFoundException(message);
+                                if (err instanceof UnprocessableEntityException) throw new UnprocessableEntityException(message);
+                                throw new HttpException(message, err.getStatus());
+                            }
+                            throw err;
+                        }
+                    }
+                    if (after) await after(tx, ids);
+                    return ids;
+                },
+                { ...TX_OPTIONS, timeout: TX_OPTIONS.timeout + dtos.length * 250 },
+            );
+        } catch (err) {
+            if (isUniqueViolation(err)) throw new ConflictException('A cargo item in this batch already has an open movement');
+            throw err;
+        }
     }
 
     private async createInTx(tx: Tx, dto: CreateMovementDto, ctx: ActorContext): Promise<string> {

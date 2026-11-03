@@ -5,10 +5,11 @@ import { RoadEdgeRepository } from '../infrastructure/road-edge.repository';
 import { CreateRoadEdgeDto } from './dto/create-road-edge.dto';
 import { UpdateRoadEdgeDto } from './dto/update-road-edge.dto';
 import { RoadDirection } from 'src/common/enums';
+import { RouteService } from 'src/modules/route/application/route.service';
 
 @Injectable()
 export class RoadEdgeService extends BaseService<RoadEdgeEntity, CreateRoadEdgeDto, UpdateRoadEdgeDto> {
-    constructor(private readonly edgeRepo: RoadEdgeRepository) {
+    constructor(private readonly edgeRepo: RoadEdgeRepository, private readonly routes: RouteService) {
         super(edgeRepo);
     }
 
@@ -20,7 +21,13 @@ export class RoadEdgeService extends BaseService<RoadEdgeEntity, CreateRoadEdgeD
         return this.edgeRepo.findAllWithFilters(filters);
     }
 
-    create(dto: CreateRoadEdgeDto): Promise<RoadEdgeEntity> {
+    async create(dto: CreateRoadEdgeDto): Promise<RoadEdgeEntity> {
+        const created = await this.createEdge(dto);
+        this.routes.invalidate(created.scenarioId);
+        return created;
+    }
+
+    private createEdge(dto: CreateRoadEdgeDto): Promise<RoadEdgeEntity> {
         const { allowedVehicles, ...edgeData } = dto;
         return this.edgeRepo.createWithAllowedVehicles({
             edgeData: {
@@ -39,7 +46,7 @@ export class RoadEdgeService extends BaseService<RoadEdgeEntity, CreateRoadEdgeD
     }
 
     async update(id: string, dto: UpdateRoadEdgeDto): Promise<RoadEdgeEntity> {
-        await this.findOne(id);
+        const before = await this.findOne(id);
         const data: any = {};
         if (dto.scenarioId !== undefined) data.scenarioId = dto.scenarioId;
         if (dto.fromNodeId !== undefined) data.fromNodeId = dto.fromNodeId;
@@ -50,16 +57,29 @@ export class RoadEdgeService extends BaseService<RoadEdgeEntity, CreateRoadEdgeD
         if (dto.congestionLevel !== undefined) data.congestionLevel = dto.congestionLevel;
         if (dto.isBlocked !== undefined) data.isBlocked = dto.isBlocked;
         if (dto.notes !== undefined) data.notes = dto.notes;
-        return this.repo.update(id, data);
+        const updated = await this.repo.update(id, data);
+        this.routes.invalidate(before.scenarioId);
+        this.routes.invalidate(updated.scenarioId);
+        return updated;
+    }
+
+    async remove(id: string): Promise<void> {
+        const before = await this.findOne(id);
+        await super.remove(id);
+        this.routes.invalidate(before.scenarioId);
     }
 
     async block(id: string): Promise<RoadEdgeEntity> {
-        await this.findOne(id);
-        return this.edgeRepo.toggleBlocked(id, true);
+        const before = await this.findOne(id);
+        const updated = await this.edgeRepo.toggleBlocked(id, true);
+        this.routes.invalidate(before.scenarioId);
+        return updated;
     }
 
     async unblock(id: string): Promise<RoadEdgeEntity> {
-        await this.findOne(id);
-        return this.edgeRepo.toggleBlocked(id, false);
+        const before = await this.findOne(id);
+        const updated = await this.edgeRepo.toggleBlocked(id, false);
+        this.routes.invalidate(before.scenarioId);
+        return updated;
     }
 }

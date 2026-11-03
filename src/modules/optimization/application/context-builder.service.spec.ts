@@ -24,8 +24,11 @@ const buildService = (slots: any[]) => {
         warehouse: { findMany: jest.fn().mockResolvedValue([{ id: 'w1', localX: 0, localY: 0 }]) },
         locationNode: { findMany: jest.fn().mockResolvedValue([]) },
         storageSlot: { findMany: jest.fn().mockResolvedValue(slots) },
+        warehouseIncident: { findMany: jest.fn().mockResolvedValue([]) },
+        slotReservation: { groupBy: jest.fn().mockResolvedValue([]) },
     };
-    return { prisma, service: new ContextBuilderService(prisma as any) };
+    const routes = { routesFrom: jest.fn().mockResolvedValue(null) };
+    return { prisma, service: new ContextBuilderService(prisma as any, routes as any) };
 };
 
 describe('ContextBuilderService — slot temperature', () => {

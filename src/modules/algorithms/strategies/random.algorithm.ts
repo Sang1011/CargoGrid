@@ -1,89 +1,38 @@
 import { Injectable } from '@nestjs/common';
 import { IOptimizationAlgorithm } from './algorithm.interface';
-import { OptimizationContext, OptimizationResult, AssignmentResult } from '../domain/types/optimization-context.type';
+import { OptimizationContext, OptimizationResult } from '../domain/types/optimization-context.type';
 import { AlgorithmType } from 'src/common/enums';
 import { ScoringService } from '../scoring/scoring.service';
+import { Placement, PlacementState, buildResult, contextRng } from './placement';
 
+/**
+ * Baseline: products in random order, each into a random slot that still satisfies the hard
+ * constraints. It is valid but blind to quality, which is what the benchmark measures against.
+ */
 @Injectable()
 export class RandomAlgorithm implements IOptimizationAlgorithm {
     readonly type = AlgorithmType.RANDOM;
 
-    constructor(private readonly scoringService: ScoringService) {}
+    constructor(private readonly scoringService: ScoringService) { }
 
     async run(context: OptimizationContext): Promise<OptimizationResult> {
-        const startTime = Date.now();
-        const assignments: AssignmentResult[] = [];
-        let hardViolations = 0;
-        let totalMovementCost = 0;
+        const startedAt = Date.now();
+        const rng = contextRng(context);
+        const state = new PlacementState(context.slots, this.scoringService);
+        const placement: Placement = new Map();
 
-        for (const product of context.products) {
-            const validSlots = context.slots.filter(slot => {
-                const { violated } = this.scoringService.isHardViolation(product, slot);
-                return !violated;
-            });
-
-            if (validSlots.length === 0) {
-                hardViolations++;
-                assignments.push({
-                    productId: product.id,
-                    slotId: null,
-                    warehouseId: null,
-                    score: null,
-                    capacityFitScore: null,
-                    movementCostScore: null,
-                    categoryMatchScore: null,
-                    vehicleAccessScore: null,
-                    demandPriorityScore: null,
-                    congestionScore: null,
-                    reasons: ['No valid slot available'],
-                    rejectedCandidates: [],
-                });
-                continue;
-            }
-
-            const randomIndex = Math.floor(Math.random() * validSlots.length);
-            const chosenSlot = validSlots[randomIndex];
-
-            const score = this.scoringService.scoreCandidate(product, chosenSlot, context.weights);
-            totalMovementCost += chosenSlot.distanceFromEntryM;
-
-            assignments.push({
-                productId: product.id,
-                slotId: chosenSlot.id,
-                warehouseId: chosenSlot.warehouseId,
-                score: score.finalScore,
-                capacityFitScore: score.capacityFitScore,
-                movementCostScore: score.movementCostScore,
-                categoryMatchScore: score.categoryMatchScore,
-                vehicleAccessScore: score.vehicleAccessScore,
-                demandPriorityScore: score.demandPriorityScore,
-                congestionScore: score.congestionScore,
-                reasons: this.scoringService.explainSelection(product, chosenSlot),
-                rejectedCandidates: [],
-            });
+        const order = [...context.products];
+        for (let i = order.length - 1; i > 0; i--) {
+            const j = Math.floor(rng() * (i + 1));
+            [order[i], order[j]] = [order[j], order[i]];
         }
 
-        const assigned = assignments.filter(a => a.slotId !== null);
-        const totalScore = assigned.reduce((sum, a) => sum + (a.score ?? 0), 0);
-
-        const spaceUtilization = context.slots.length > 0
-            ? assigned.length / context.slots.length
-            : 0;
-
-        return {
-            assignments,
-            metrics: {
-                productsTotal: context.products.length,
-                productsAssigned: assigned.length,
-                productsUnassigned: context.products.length - assigned.length,
-                hardViolations,
-                totalMovementCost,
-                avgRetrievalCost: assigned.length > 0 ? totalMovementCost / assigned.length : 0,
-                spaceUtilization,
-                congestionScore: 0,
-                runtimeMs: Date.now() - startTime,
-                optimizationScore: assigned.length > 0 ? totalScore / assigned.length : 0,
-            },
-        };
+        for (const p of order) {
+            const open = context.slots.filter(s => state.violations(p, s.id).length === 0);
+            const slotId = open.length > 0 ? open[Math.floor(rng() * open.length)].id : null;
+            placement.set(p.id, slotId);
+            if (slotId) state.place(p, slotId);
+        }
+        return buildResult(context, placement, this.scoringService, startedAt);
     }
 }

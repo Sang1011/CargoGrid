@@ -8,7 +8,10 @@ import { ContextBuilderService } from './context-builder.service';
 import { RunOptimizationDto } from './dto/run-optimization.dto';
 import { CompareOptimizationDto } from './dto/compare-optimization.dto';
 import { OptimizationRunEntity } from '../domain/optimization-run.entity';
-import { AssignmentStatus } from 'src/common/enums';
+import { AlgorithmType, AssignmentStatus } from 'src/common/enums';
+import { BenchmarkDto } from './dto/benchmark.dto';
+import { BenchmarkRow, runBenchmark } from 'src/modules/benchmark/benchmark-runner';
+import { OptimizationContext, OptimizationResult } from 'src/modules/algorithms/domain/types/optimization-context.type';
 
 @Injectable()
 export class OptimizationService {
@@ -21,25 +24,22 @@ export class OptimizationService {
     ) {}
 
     async run(dto: RunOptimizationDto): Promise<OptimizationRunEntity> {
-        const context = await this.contextBuilder.build(dto.scenarioId, dto.contextType);
+        const context = await this.contextBuilder.build(dto.scenarioId, dto.contextType, { contextId: dto.contextId, seed: dto.seed });
+        this.applyWeights(context, dto.weights);
+        const { run } = await this.execute(context, dto.algorithm);
+        return run;
+    }
 
-        if (dto.weights) {
-            context.weights = {
-                ...DEFAULT_SCORING_WEIGHTS,
-                ...Object.fromEntries(
-                    Object.entries(dto.weights).filter(([_, v]) => v !== undefined),
-                ),
-            } as ScoringWeights;
-        }
-
-        const algorithm = this.algorithmFactory.get(dto.algorithm);
+    /** Runs one algorithm on an already-built context and stores the run with its assignments. */
+    async execute(context: OptimizationContext, algorithmType: AlgorithmType): Promise<{ run: OptimizationRunEntity; result: OptimizationResult }> {
+        const algorithm = this.algorithmFactory.get(algorithmType);
         const result = await algorithm.run(context);
 
-        const runRow = await this.runRepository.create({
-            scenarioId: dto.scenarioId,
-            contextType: dto.contextType,
-            contextId: dto.contextId ?? null,
-            algorithm: dto.algorithm,
+        const run = await this.runRepository.create({
+            scenarioId: context.scenarioId,
+            contextType: context.contextType,
+            contextId: context.contextId ?? null,
+            algorithm: algorithmType,
             weightCapacityFit: context.weights.capacityFit,
             weightMovementCost: context.weights.movementCost,
             weightCategoryMatch: context.weights.categoryMatch,
@@ -57,15 +57,18 @@ export class OptimizationService {
             runtimeMs: result.metrics.runtimeMs,
             optimizationScore: result.metrics.optimizationScore,
             resultSnapshot: {
-                algorithm: dto.algorithm,
+                algorithm: algorithmType,
                 weights: context.weights,
                 metrics: result.metrics,
+                notes: context.notes ?? [],
+                seed: context.seed ?? null,
             },
         });
 
-        const assignmentInputs = result.assignments.map(a => ({
-            runId: runRow.id,
-            productId: a.productId,
+        const productOf = new Map(context.products.map(p => [p.id, p.productId ?? p.id]));
+        await this.assignmentRepository.bulkCreate(result.assignments.map(a => ({
+            runId: run.id,
+            productId: productOf.get(a.productId) ?? a.productId,
             warehouseId: a.warehouseId,
             slotId: a.slotId,
             status: a.slotId ? AssignmentStatus.ASSIGNED : AssignmentStatus.PENDING,
@@ -76,87 +79,41 @@ export class OptimizationService {
             vehicleAccessScore: a.vehicleAccessScore,
             demandPriorityScore: a.demandPriorityScore,
             congestionScore: a.congestionScore,
+            routeCost: a.routeCost,
+            routePath: a.routePath ? { nodes: a.routePath, distanceM: a.routeDistanceM, warnings: a.routeWarnings } : null,
             reasons: a.reasons,
-            rejectedCandidates: a.rejectedCandidates.length > 0
-                ? { candidates: a.rejectedCandidates }
-                : null,
-        }));
+            rejectedCandidates: a.rejectedCandidates.length > 0 ? { candidates: a.rejectedCandidates } : null,
+        })));
 
-        await this.assignmentRepository.bulkCreate(assignmentInputs);
+        return { run, result };
+    }
 
-        return runRow;
+    applyWeights(context: OptimizationContext, weights?: Partial<ScoringWeights>): void {
+        if (!weights) return;
+        context.weights = {
+            ...DEFAULT_SCORING_WEIGHTS,
+            ...Object.fromEntries(Object.entries(weights).filter(([_, v]) => v !== undefined)),
+        } as ScoringWeights;
     }
 
     async compare(dto: CompareOptimizationDto): Promise<OptimizationRunEntity[]> {
-        const context = await this.contextBuilder.build(dto.scenarioId, dto.contextType);
-
-        if (dto.weights) {
-            context.weights = {
-                ...DEFAULT_SCORING_WEIGHTS,
-                ...Object.fromEntries(
-                    Object.entries(dto.weights).filter(([_, v]) => v !== undefined),
-                ),
-            } as ScoringWeights;
-        }
+        // One context for every algorithm, so they are compared on identical input.
+        const context = await this.contextBuilder.build(dto.scenarioId, dto.contextType, { contextId: dto.contextId, seed: dto.seed ?? 1 });
+        this.applyWeights(context, dto.weights);
 
         const results: OptimizationRunEntity[] = [];
-
         for (const algoType of dto.algorithms) {
-            const algorithm = this.algorithmFactory.get(algoType);
-            const result = await algorithm.run(context);
-
-            const runRow = await this.runRepository.create({
-                scenarioId: dto.scenarioId,
-                contextType: dto.contextType,
-                contextId: null,
-                algorithm: algoType,
-                weightCapacityFit: context.weights.capacityFit,
-                weightMovementCost: context.weights.movementCost,
-                weightCategoryMatch: context.weights.categoryMatch,
-                weightVehicleAccess: context.weights.vehicleAccess,
-                weightDemandPriority: context.weights.demandPriority,
-                weightCongestion: context.weights.congestion,
-                productsTotal: result.metrics.productsTotal,
-                productsAssigned: result.metrics.productsAssigned,
-                productsUnassigned: result.metrics.productsUnassigned,
-                hardViolations: result.metrics.hardViolations,
-                totalMovementCost: result.metrics.totalMovementCost,
-                avgRetrievalCost: result.metrics.avgRetrievalCost,
-                spaceUtilization: result.metrics.spaceUtilization,
-                congestionScore: result.metrics.congestionScore,
-                runtimeMs: result.metrics.runtimeMs,
-                optimizationScore: result.metrics.optimizationScore,
-                resultSnapshot: {
-                    algorithm: algoType,
-                    weights: context.weights,
-                    metrics: result.metrics,
-                },
-            });
-
-            const assignmentInputs = result.assignments.map(a => ({
-                runId: runRow.id,
-                productId: a.productId,
-                warehouseId: a.warehouseId,
-                slotId: a.slotId,
-                status: a.slotId ? AssignmentStatus.ASSIGNED : AssignmentStatus.PENDING,
-                finalScore: a.score,
-                capacityFitScore: a.capacityFitScore,
-                movementCostScore: a.movementCostScore,
-                categoryMatchScore: a.categoryMatchScore,
-                vehicleAccessScore: a.vehicleAccessScore,
-                demandPriorityScore: a.demandPriorityScore,
-                congestionScore: a.congestionScore,
-                reasons: a.reasons,
-                rejectedCandidates: a.rejectedCandidates.length > 0
-                    ? { candidates: a.rejectedCandidates }
-                    : null,
-            }));
-
-            await this.assignmentRepository.bulkCreate(assignmentInputs);
-            results.push(runRow);
+            results.push((await this.execute(context, algoType)).run);
         }
-
         return results;
+    }
+
+    /**
+     * Runs the algorithms on the built-in benchmark datasets (generated in memory, nothing is stored)
+     * and returns one row per dataset and algorithm.
+     */
+    benchmark(dto: BenchmarkDto): Promise<BenchmarkRow[]> {
+        return runBenchmark(type => this.algorithmFactory.get(type), dto);
     }
 
     async findByScenario(

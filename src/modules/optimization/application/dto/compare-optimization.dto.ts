@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsEnum, IsNotEmpty, IsOptional, IsUUID, ValidateNested } from 'class-validator';
+import { IsArray, IsInt, IsEnum, IsNotEmpty, IsOptional, IsUUID, ValidateNested } from 'class-validator';
 import { AlgorithmType, OptimizationContextType } from 'src/common/enums';
 import { Type } from 'class-transformer';
 
@@ -51,4 +51,14 @@ export class CompareOptimizationDto {
     @ValidateNested()
     @Type(() => PartialWeights)
     weights?: PartialWeights;
+
+    @ApiPropertyOptional({ description: 'Inbound shipment or transfer order to allocate; omit to use the whole product catalogue' })
+    @IsUUID()
+    @IsOptional()
+    contextId?: string;
+
+    @ApiPropertyOptional({ description: 'Seed for Random / Local Search / Annealing so a run can be repeated exactly' })
+    @IsInt()
+    @IsOptional()
+    seed?: number;
 }

@@ -12,7 +12,7 @@ export class ScoringService {
         weights: ScoringWeights,
     ): CandidateScore {
         const capacityFitScore = this.calculateCapacityFitScore(product, slot);
-        const movementCostScore = this.calculateMovementCostScore(slot);
+        const movementCostScore = this.calculateMovementCostScore(product, slot);
         const categoryMatchScore = this.calculateCategoryMatchScore(product, slot);
         const vehicleAccessScore = this.calculateVehicleAccessScore(product, slot);
         const demandPriorityScore = this.calculateDemandPriorityScore(product);
@@ -77,6 +77,11 @@ export class ScoringService {
             reasons.push(`Vehicle type ${product.vehicleType} not allowed in this slot`);
         }
 
+        // BR-10: when the yard has a road graph, a slot nobody can drive to is not a candidate.
+        if (product.routes && !product.routes.bySlot.get(slot.id)) {
+            reasons.push(`No valid route to this slot for vehicle type ${product.vehicleType}`);
+        }
+
         return { violated: reasons.length > 0, reasons };
     }
 
@@ -99,9 +104,24 @@ export class ScoringService {
 
         reasons.push('Enough remaining weight and volume capacity');
         reasons.push(`Vehicle type ${product.vehicleType} is allowed in this slot`);
-        reasons.push(`${slot.distanceFromEntryM.toFixed(1)} m from the entry point`);
+        const route = product.routes?.bySlot.get(slot.id);
+        if (route) {
+            reasons.push(`Route of ${route.distanceM.toFixed(1)} m (cost ${route.costM.toFixed(1)} after congestion) from the entry point`);
+            reasons.push(...route.warnings);
+        } else {
+            reasons.push(`${slot.distanceFromEntryM.toFixed(1)} m from the entry point`);
+        }
 
         return reasons;
+    }
+
+    /**
+     * What it costs to bring `product` to `slot`: the planned route when the yard has a graph,
+     * otherwise the straight-line distance from the entry point. null = unreachable.
+     */
+    movementCost(product: ProductCandidate, slot: SlotCandidate): number | null {
+        if (!product.routes) return slot.distanceFromEntryM;
+        return product.routes.bySlot.get(slot.id)?.costM ?? null;
     }
 
     private calculateCapacityFitScore(product: ProductCandidate, slot: SlotCandidate): number {
@@ -115,9 +135,11 @@ export class ScoringService {
         return Math.max(0, 1 - fitRatio);
     }
 
-    private calculateMovementCostScore(slot: SlotCandidate): number {
-        const maxDistance = 100;
-        return Math.max(0, 1 - (slot.distanceFromEntryM / maxDistance));
+    private calculateMovementCostScore(product: ProductCandidate, slot: SlotCandidate): number {
+        const cost = this.movementCost(product, slot);
+        if (cost === null) return 0;
+        const scale = product.routes ? Math.max(product.routes.scale, 1) : 100;
+        return Math.max(0, 1 - cost / scale);
     }
 
     private calculateCategoryMatchScore(product: ProductCandidate, slot: SlotCandidate): number {
