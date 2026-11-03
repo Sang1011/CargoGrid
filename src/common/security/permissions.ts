@@ -30,6 +30,8 @@ export const SPECIAL_PERMISSIONS = [
     'allocation.run',
     // Kept separate from `allocation.run`: whoever proposes a plan is not automatically allowed to apply it.
     'allocation.confirm',
+    // Plan the evacuation of a warehouse with an incident. Applying the plan still needs `allocation.confirm`.
+    'evacuation.run',
     // Start and complete a movement: the people physically moving cargo, as opposed to those who plan it.
     'movements.execute',
     'audit.read',
@@ -61,6 +63,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
         'allocation.read',
         'allocation.run',
         'allocation.confirm',
+        'evacuation.run',
         'movements.execute',
         'audit.read',
     ],
@@ -80,6 +83,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
         ...writeOn('transfer-orders', 'transfer-order-items', 'outbound-orders', 'outbound-order-items', 'vehicles', 'movements'),
         'allocation.read',
         'allocation.run',
+        'evacuation.run',
     ],
     accountant: [...readAll, 'allocation.read', 'audit.read'],
 };

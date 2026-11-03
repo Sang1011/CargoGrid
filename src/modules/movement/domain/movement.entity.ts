@@ -1,4 +1,4 @@
-import { MovementStatus, MovementType, ReservationStatus } from 'src/common/enums';
+import { PriorityLevel, MovementStatus, MovementType, ReservationStatus } from 'src/common/enums';
 
 export interface ReservationView {
     status: ReservationStatus;
@@ -19,6 +19,7 @@ export interface MovementProps {
     weightKg: number;
     volumeM3: number;
     reason: string | null;
+    priority: PriorityLevel;
     cancelReason: string | null;
     requestedById: string | null;
     correlationId: string | null;
@@ -45,6 +46,7 @@ export class MovementEntity {
     readonly weightKg!: number;
     readonly volumeM3!: number;
     readonly reason!: string | null;
+    readonly priority!: PriorityLevel;
     readonly cancelReason!: string | null;
     readonly requestedById!: string | null;
     readonly correlationId!: string | null;

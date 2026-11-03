@@ -36,6 +36,7 @@ const PRIORITY_RANK: Record<PriorityLevel, number> = {
 };
 
 export const byUrgency = (a: ProductCandidate, b: ProductCandidate): number =>
+    (a.rank ?? 0) - (b.rank ?? 0) ||
     (PRIORITY_RANK[b.priority] ?? 0) - (PRIORITY_RANK[a.priority] ?? 0) ||
     b.demandFrequency - a.demandFrequency ||
     a.id.localeCompare(b.id);

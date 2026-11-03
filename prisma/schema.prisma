@@ -696,6 +696,8 @@ model Movement {
   weightKg        Decimal        @map("weight_kg") @db.Decimal(10, 3)
   volumeM3        Decimal        @map("volume_m3") @db.Decimal(10, 4)
   reason          String?
+  // Emergency evacuations create urgent movements; everything else defaults to medium.
+  priority        PriorityLevel  @default(medium)
   cancelReason    String?        @map("cancel_reason")
   requestedById   String?        @map("requested_by_id") @db.Uuid
   correlationId   String?        @map("correlation_id") @db.VarChar(64)
@@ -856,6 +858,8 @@ model TransferOrder {
   fromWarehouseId  String              @map("from_warehouse_id") @db.Uuid
   reason           String?
   isEmergency      Boolean             @default(false) @map("is_emergency")
+  // For an evacuation: what could not be moved and why (BR-14).
+  evacuationReport Json?               @map("evacuation_report")
   totalItems       Int                 @default(0) @map("total_items")
   transferredItems Int                 @default(0) @map("transferred_items")
   failedItems      Int                 @default(0) @map("failed_items")

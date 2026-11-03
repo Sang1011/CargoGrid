@@ -213,6 +213,7 @@ export class MovementService {
                 weightKg,
                 volumeM3,
                 reason: dto.reason ?? null,
+                priority: dto.priority ?? PriorityLevel.MEDIUM,
                 requestedById: ctx.actorId ?? null,
                 correlationId: ctx.correlationId ?? null,
             },
@@ -247,7 +248,7 @@ export class MovementService {
         await this.advance(tx, movement.id, movement.version, { status: MovementStatus.RESERVED });
         await this.ledger(tx, movement, CargoEventType.SLOT_RESERVED, ctx, dto.reason ?? null);
         await this.record(tx, movement, 'reserve', { status: null }, { status: MovementStatus.RESERVED, toSlotId: destination?.slotId ?? null }, ctx);
-        await this.emit(tx, movement.id, 'MovementReserved', { cargoItemId: cargo.id, type, toSlotId: destination?.slotId ?? null, expiresAt: reservationExpiresAt }, ctx);
+        await this.emit(tx, movement.id, 'MovementReserved', { cargoItemId: cargo.id, type, toSlotId: destination?.slotId ?? null, expiresAt: reservationExpiresAt, priority: dto.priority ?? PriorityLevel.MEDIUM }, ctx);
 
         return movement.id;
     }
@@ -260,6 +261,7 @@ export class MovementService {
             assertTransitionOrConflict(movement.status as MovementStatus, MovementStatus.IN_TRANSIT);
 
             const type = movement.type as MovementType;
+            if (movement.toWarehouseId) await this.assertNoSeriousIncident(tx, movement.toWarehouseId);
             const reservation = await tx.slotReservation.findUnique({ where: { movementId: id } });
             if (needsDestination(type)) {
                 if (!reservation || reservation.status !== ReservationStatus.ACTIVE) {
@@ -309,6 +311,7 @@ export class MovementService {
             if (destinationSlot && (destinationSlot.isBlocked || !destinationSlot.isActive)) {
                 throw new ConflictException('The destination slot is blocked or inactive; cancel this movement or wait');
             }
+            if (destination) await this.assertNoSeriousIncident(tx, destination.warehouseId);
 
             const cargo = await tx.cargoItem.findUnique({ where: { id: movement.cargoItemId } });
             if (!cargo) throw new NotFoundException('Cargo item not found');
@@ -487,14 +490,21 @@ export class MovementService {
         const warehouse = await tx.warehouse.findUnique({ where: { id: slot.warehouseId }, select: { isActive: true } });
         if (!warehouse?.isActive) throw new ConflictException('The destination warehouse is inactive');
 
+        await this.assertNoSeriousIncident(tx, slot.warehouseId);
+    }
+
+    /** BR-13. Also re-checked when a movement starts or completes: an incident may have opened since it was reserved. */
+    private async assertNoSeriousIncident(tx: Tx, warehouseId: string): Promise<void> {
         const incidents = await tx.warehouseIncident.count({
             where: {
-                warehouseId: slot.warehouseId,
+                warehouseId,
                 status: { in: [IncidentStatus.OPEN, IncidentStatus.RESOLVING] },
                 severity: { in: [IncidentSeverity.HIGH, IncidentSeverity.CRITICAL] },
             },
         });
-        if (incidents > 0) throw new ConflictException('The destination warehouse has an open high-severity incident and is not accepting cargo');
+        if (incidents > 0) {
+            throw new ConflictException('The destination warehouse has an open high-severity incident and is not accepting cargo; cancel this movement and plan again');
+        }
     }
 
     /** Zone, temperature and vehicle rules: the same engine the optimizer uses (BR-09). */

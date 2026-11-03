@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { MovementStatus, MovementType, ReservationStatus } from 'src/common/enums';
+import { PriorityLevel, MovementStatus, MovementType, ReservationStatus } from 'src/common/enums';
 import { MovementEntity } from '../../domain/movement.entity';
 
 class ReservationResponse {
@@ -21,6 +21,7 @@ export class MovementResponse {
     @ApiProperty() weightKg!: number;
     @ApiProperty() volumeM3!: number;
     @ApiPropertyOptional() reason!: string | null;
+    @ApiProperty({ enum: PriorityLevel }) priority!: PriorityLevel;
     @ApiPropertyOptional() cancelReason!: string | null;
     @ApiPropertyOptional() requestedById!: string | null;
     @ApiProperty() version!: number;
@@ -45,6 +46,7 @@ export class MovementResponse {
         r.weightKg = e.weightKg;
         r.volumeM3 = e.volumeM3;
         r.reason = e.reason;
+        r.priority = e.priority;
         r.cancelReason = e.cancelReason;
         r.requestedById = e.requestedById;
         r.version = e.version;

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { BaseRepository } from 'src/common/base/base.repository';
-import { MovementStatus, MovementType, ReservationStatus } from 'src/common/enums';
+import { MovementStatus, MovementType, PriorityLevel, ReservationStatus } from 'src/common/enums';
 import { Page, buildOrderBy } from 'src/common/pagination/paginate';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { MovementQueryDto } from '../application/dto/movement-query.dto';
@@ -28,6 +28,7 @@ export class MovementRepository extends BaseRepository<MovementEntity> {
             weightKg: Number(raw.weightKg),
             volumeM3: Number(raw.volumeM3),
             reason: raw.reason ?? null,
+            priority: (raw.priority ?? 'medium') as PriorityLevel,
             cancelReason: raw.cancelReason ?? null,
             requestedById: raw.requestedById ?? null,
             correlationId: raw.correlationId ?? null,

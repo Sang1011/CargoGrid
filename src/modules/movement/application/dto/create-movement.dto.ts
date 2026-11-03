@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
-import { MovementType } from 'src/common/enums';
+import { MovementType, PriorityLevel } from 'src/common/enums';
 
 export class CreateMovementDto {
     @ApiProperty({ description: 'The cargo item to move. Its current location is read from the system, never from the request.' })
@@ -20,6 +20,11 @@ export class CreateMovementDto {
     @IsOptional()
     @IsUUID()
     vehicleId?: string;
+
+    @ApiPropertyOptional({ enum: PriorityLevel, default: PriorityLevel.MEDIUM, description: 'Emergency evacuations use urgent' })
+    @IsOptional()
+    @IsEnum(PriorityLevel)
+    priority?: PriorityLevel;
 
     @ApiPropertyOptional({ maxLength: 500 })
     @IsOptional()

@@ -10,6 +10,8 @@ export interface BuildOptions {
     /** InboundShipment (inbound) or TransferOrder (transfer). Without it the whole product catalogue is used. */
     contextId?: string;
     seed?: number;
+    /** Cargo item id -> position in the order it must be placed (lower first). Used by evacuations. */
+    cargoRank?: ReadonlyMap<string, number>;
 }
 
 const OPEN_MOVEMENT = ['created', 'reserved', 'in_transit'] as const;
@@ -31,7 +33,7 @@ export class ContextBuilderService {
         const lot = options.contextId ? await this.loadLot(scenarioId, contextType, options.contextId) : null;
 
         const [products, loaded] = await Promise.all([
-            lot ? this.loadCargo(scenarioId, lot.cargoItemIds) : this.loadProducts(scenarioId),
+            lot ? this.loadCargo(scenarioId, lot.cargoItemIds, options.cargoRank) : this.loadProducts(scenarioId),
             this.loadSlots(scenarioId, notes),
         ]);
 
@@ -112,7 +114,7 @@ export class ContextBuilderService {
         return { cargoItemIds, originNodeId, excludeWarehouseId };
     }
 
-    private async loadCargo(scenarioId: string, cargoItemIds: string[]): Promise<ProductCandidate[]> {
+    private async loadCargo(scenarioId: string, cargoItemIds: string[], rank?: ReadonlyMap<string, number>): Promise<ProductCandidate[]> {
         const rows = await this.prisma.cargoItem.findMany({
             where: { id: { in: cargoItemIds }, scenarioId },
             include: { product: true },
@@ -123,6 +125,7 @@ export class ContextBuilderService {
             id: row.id,
             productId: row.productId,
             cargoItemId: row.id,
+            rank: rank?.get(row.id),
             weightKg: Number(row.actualWeightKg ?? row.product.weightKg),
             volumeM3: Number(row.actualVolumeM3 ?? row.product.volumeM3),
         }));

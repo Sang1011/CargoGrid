@@ -35,6 +35,8 @@ export interface ProductCandidate {
     demandFrequency: number;
     priority: PriorityLevel;
     vehicleType: VehicleType;
+    /** Lower is placed first, ahead of priority and demand. Set by an evacuation to put cold cargo first. */
+    rank?: number;
 }
 
 export interface SlotCandidate {

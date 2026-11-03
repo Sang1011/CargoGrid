@@ -26,10 +26,11 @@ import { AuthModule } from './modules/auth/auth.module';
 import { MovementModule } from './modules/movement/movement.module';
 import { RouteModule } from './modules/route/route.module';
 import { AllocationModule } from './modules/allocation/allocation.module';
+import { EvacuationModule } from './modules/evacuation/evacuation.module';
 import { CorrelationIdMiddleware } from './common/correlation/correlation-id.middleware';
 
 @Module({
-  imports: [PrismaModule, ScenarioModule, ProductModule, VehicleModule, WarehouseModule, ZoneModule, StorageSlotModule, LocationNodeModule, RoadEdgeModule, CargoItemModule, InboundShipmentModule, ShipmentItemModule, WarehouseIncidentModule, TransferOrderModule, TransferOrderItemModule, OutboundOrderModule, OutboundOrderItemModule, AlgorithmsModule, OptimizationModule, HealthModule, SecurityModule, AuthModule, MovementModule, RouteModule, AllocationModule],
+  imports: [PrismaModule, ScenarioModule, ProductModule, VehicleModule, WarehouseModule, ZoneModule, StorageSlotModule, LocationNodeModule, RoadEdgeModule, CargoItemModule, InboundShipmentModule, ShipmentItemModule, WarehouseIncidentModule, TransferOrderModule, TransferOrderItemModule, OutboundOrderModule, OutboundOrderItemModule, AlgorithmsModule, OptimizationModule, HealthModule, SecurityModule, AuthModule, MovementModule, RouteModule, AllocationModule, EvacuationModule],
   controllers: [AppController],
   providers: [AppService],
 })

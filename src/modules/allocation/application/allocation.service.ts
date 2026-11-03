@@ -1,7 +1,7 @@
 import { ConflictException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AuditService } from 'src/common/audit/audit.service';
-import { AlgorithmType, MovementType, OptimizationContextType } from 'src/common/enums';
+import { AlgorithmType, MovementType, OptimizationContextType, PriorityLevel } from 'src/common/enums';
 import { Page, paginate } from 'src/common/pagination/paginate';
 import { buildOrderBy } from 'src/common/pagination/paginate';
 import { OptimizationContext } from 'src/modules/algorithms/domain/types/optimization-context.type';
@@ -69,8 +69,12 @@ export class AllocationService {
 
     // ─── propose ────────────────────────────────────────────────────────────
 
-    async propose(dto: ProposeAllocationDto, ctx: Actor = {}): Promise<AllocationView> {
-        const context = await this.contextBuilder.build(dto.scenarioId, dto.contextType, { contextId: dto.contextId, seed: dto.seed });
+    async propose(
+        dto: ProposeAllocationDto,
+        ctx: Actor = {},
+        options: { cargoRank?: ReadonlyMap<string, number> } = {},
+    ): Promise<AllocationView> {
+        const context = await this.contextBuilder.build(dto.scenarioId, dto.contextType, { contextId: dto.contextId, seed: dto.seed, cargoRank: options.cargoRank });
         this.optimization.applyWeights(context, dto.weights);
 
         const algorithm = dto.algorithm ?? AlgorithmType.GREEDY;
@@ -109,6 +113,10 @@ export class AllocationService {
                     },
                 },
             });
+            if (dto.contextType === OptimizationContextType.TRANSFER) {
+                // A transfer order that has a plan is "proposed" until someone confirms or rejects it.
+                await tx.transferOrder.updateMany({ where: { id: dto.contextId, status: 'draft' }, data: { status: 'proposed', runId: run.id } });
+            }
             await this.audit.recordInTransaction(tx, {
                 ...ctx,
                 action: 'allocation.propose',
@@ -241,9 +249,14 @@ export class AllocationService {
 
         const type = proposal.contextType === OptimizationContextType.INBOUND ? MovementType.PORT_ENTRY : MovementType.WAREHOUSE_TRANSFER;
         const items = [...proposal.items].sort((a, b) => a.cargoItemId.localeCompare(b.cargoItemId));
+        // An emergency evacuation turns into urgent movements so the floor knows what to do first.
+        const order = proposal.contextType === OptimizationContextType.TRANSFER
+            ? await this.prisma.transferOrder.findUnique({ where: { id: proposal.contextId }, select: { id: true, isEmergency: true } })
+            : null;
+        const priority = order?.isEmergency ? PriorityLevel.URGENT : undefined;
 
         await this.movements.createBatch(
-            items.map(i => ({ cargoItemId: i.cargoItemId, type, toSlotId: i.slotId!, reason: `Allocation ${id}` })),
+            items.map(i => ({ cargoItemId: i.cargoItemId, type, toSlotId: i.slotId!, reason: order?.isEmergency ? `Emergency evacuation (allocation ${id})` : `Allocation ${id}`, priority })),
             ctx,
             async (tx, movementIds) => {
                 const claimed = await tx.allocationProposal.updateMany({
@@ -254,6 +267,21 @@ export class AllocationService {
 
                 for (let n = 0; n < items.length; n++) {
                     await tx.allocationProposalItem.update({ where: { id: items[n].id }, data: { movementId: movementIds[n] } });
+                }
+                if (order) {
+                    await tx.transferOrder.update({ where: { id: order.id }, data: { status: 'confirmed', confirmedAt: new Date() } });
+                    for (const item of items) {
+                        await tx.transferOrderItem.updateMany({
+                            where: { transferOrderId: order.id, cargoItemId: item.cargoItemId },
+                            data: {
+                                proposedSlotId: item.slotId,
+                                proposedWarehouseId: item.warehouseId,
+                                proposalScore: item.score,
+                                proposalReasons: item.reasons,
+                                status: 'planned',
+                            },
+                        });
+                    }
                 }
                 await this.audit.recordInTransaction(tx, {
                     ...ctx,
@@ -277,6 +305,10 @@ export class AllocationService {
                 data: { status: 'rejected', rejectedAt: new Date(), rejectReason: reason ?? null, version: { increment: 1 } },
             });
             if (claimed.count !== 1) throw new ConflictException('Allocation was changed by someone else; reload and retry');
+            if (proposal.contextType === OptimizationContextType.TRANSFER) {
+                // Only an evacuation is withdrawn with its plan; an ordinary transfer order stays and can be planned again.
+                await tx.transferOrder.updateMany({ where: { id: proposal.contextId, isEmergency: true, status: { in: ['draft', 'proposed'] } }, data: { status: 'cancelled' } });
+            }
             await this.audit.recordInTransaction(tx, {
                 ...ctx, action: 'allocation.reject', entityType: 'allocations', entityId: id,
                 oldValue: { status: proposal.status }, newValue: { status: 'rejected' }, reason: reason ?? null,
